@@ -1,0 +1,214 @@
+# SSO-enabled production stack — OIDC login via an oauth2-proxy forward-auth gate.
+#
+# Topology:
+#   browser → Caddy (TLS) → oauth2-proxy (OIDC client) → gateway
+#                                  │ OIDC
+#                                  ▼
+#                               IdP  —  bundled Keycloak (profile: bundled-idp)
+#                                       OR the customer's Entra / Okta / Keycloak
+#
+# The gateway trusts the verified identity headers oauth2-proxy injects
+# (X-Auth-Request-*); see poc/backend/auth.py. See docs/SSO.md.
+#
+# ── Quick start (demo / test, bundled Keycloak) ────────────────────────────
+# From a REPO checkout (this compose has no build: — the delivery bundle ships
+# prebuilt images and no Dockerfile), build the gateway image yourself first:
+#   docker build -t rst-elastic-ai-copilot-gateway:dev .
+#   export OAUTH2_PROXY_COOKIE_SECRET=$(openssl rand -base64 32)   # 没有默认值，见下
+#   GATEWAY_IMAGE_TAG=dev docker compose -f docker-compose.sso.yml --profile bundled-idp up -d
+#   open http://localhost:18180/   → redirected to Keycloak → log in
+#   test user:  analyst / analyst123
+# On a customer host use ./deploy.sh (loads the bundled image tar and pins the tag).
+#
+# ── Production (customer IdP) ──────────────────────────────────────────────
+#   Do NOT use --profile bundled-idp. In .env set:
+#     OIDC_ISSUER_URL, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET   (from the IdP)
+#     OAUTH2_PROXY_COOKIE_SECRET=$(openssl rand -base64 32)
+#     OAUTH2_PROXY_REDIRECT_URL=https://<site>/oauth2/callback
+#     OAUTH2_PROXY_COOKIE_SECURE=true   OAUTH2_PROXY_REVERSE_PROXY=true
+#   Register redirect URI  https://<site>/oauth2/callback  at the IdP.
+
+services:
+  # Bundled ES — only starts with `--profile bundled-elk`. Standard SSO deployment
+  # connects the gateway to the customer's existing ES via ES_URL in .env.
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+    container_name: rst-elastic-ai-copilot-sso-es
+    profiles: ["bundled-elk"]
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    volumes:
+      - sso_es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  # Bundled IdP — only starts with `--profile bundled-idp`. Customers with an
+  # existing IdP (Entra / Okta / their Keycloak) skip this and point the
+  # OIDC_* vars at it instead.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: rst-elastic-ai-copilot-sso-keycloak
+    profiles: ["bundled-idp"]
+    command: ["start-dev", "--import-realm"]
+    environment:
+      - KC_BOOTSTRAP_ADMIN_USERNAME=${KEYCLOAK_ADMIN_USER:-admin}
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      # KC_HOSTNAME = the browser-facing Keycloak URL. The token `iss` is built
+      # from it, so oauth2-proxy's OIDC_ISSUER_URL + LOGIN_URL must match.
+      - KC_HOSTNAME=${KEYCLOAK_PUBLIC_URL:-http://localhost:18081}
+      - KC_HTTP_ENABLED=true
+      - KC_HEALTH_ENABLED=true
+    volumes:
+      - ./keycloak/realm-rst.json:/opt/keycloak/data/import/realm-rst.json:ro
+      - ./keycloak/realm-saml-idp.json:/opt/keycloak/data/import/realm-saml-idp.json:ro
+    ports:
+      - "${KEYCLOAK_PORT:-18081}:8080"
+
+  # Bundled demo LDAP directory — stands in for the customer's AD/LDAP. Keycloak
+  # federates users from it (realm-rst.json -> components). Only with the profile.
+  openldap:
+    image: osixia/openldap:1.5.0
+    container_name: rst-elastic-ai-copilot-sso-openldap
+    profiles: ["bundled-idp"]
+    command: ["--copy-service"]
+    environment:
+      - LDAP_ORGANISATION=RST
+      - LDAP_DOMAIN=rst.local
+      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD:-ldapadmin}
+    volumes:
+      - ./keycloak/ldap-seed.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/50-rst-users.ldif:ro
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.7.1
+    container_name: rst-elastic-ai-copilot-sso-oauth2-proxy
+    environment:
+      - OAUTH2_PROXY_HTTP_ADDRESS=0.0.0.0:4180
+      - OAUTH2_PROXY_PROVIDER=oidc
+      - OAUTH2_PROXY_OIDC_ISSUER_URL=${OIDC_ISSUER_URL:-http://localhost:18081/realms/rst-copilot}
+      # Split-URL OIDC — the browser reaches the IdP on a different address than
+      # oauth2-proxy does (host loopback vs. the docker network). Discovery is
+      # skipped, endpoints given explicitly: LOGIN_URL is browser-facing,
+      # REDEEM_URL / JWKS_URL are oauth2-proxy back-channel. For a customer IdP
+      # with ONE publicly-reachable URL, set OAUTH2_PROXY_SKIP_OIDC_DISCOVERY=false
+      # and leave only OAUTH2_PROXY_OIDC_ISSUER_URL.
+      - OAUTH2_PROXY_SKIP_OIDC_DISCOVERY=${OAUTH2_PROXY_SKIP_OIDC_DISCOVERY:-true}
+      - OAUTH2_PROXY_LOGIN_URL=${OIDC_LOGIN_URL:-http://localhost:18081/realms/rst-copilot/protocol/openid-connect/auth}
+      - OAUTH2_PROXY_REDEEM_URL=${OIDC_REDEEM_URL:-http://keycloak:8080/realms/rst-copilot/protocol/openid-connect/token}
+      - OAUTH2_PROXY_OIDC_JWKS_URL=${OIDC_JWKS_URL:-http://keycloak:8080/realms/rst-copilot/protocol/openid-connect/certs}
+      - OAUTH2_PROXY_CLIENT_ID=${OIDC_CLIENT_ID:-rst-copilot-proxy}
+      - OAUTH2_PROXY_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-rst-oauth2-proxy-dev-secret}
+      # 没有默认值是故意的：cookie secret 是签会话的密钥，留一个仓库里写着的
+      # 默认值，等于任何读过这个文件的人都能伪造已登录会话。缺了就起不来，
+      # 比默默用一个公开的值强。生成：openssl rand -base64 32
+      - "OAUTH2_PROXY_COOKIE_SECRET=${OAUTH2_PROXY_COOKIE_SECRET:?set it - openssl rand -base64 32}"
+      # 引号是承重的：裸的 `*` 在 YAML 里是别名标记，docker compose 会直接
+      # 报 `unexpected type map` 起不来。
+      - "OAUTH2_PROXY_EMAIL_DOMAINS=*"
+      - OAUTH2_PROXY_UPSTREAMS=http://gateway:8000
+      - OAUTH2_PROXY_REDIRECT_URL=${OAUTH2_PROXY_REDIRECT_URL:-http://localhost:18180/oauth2/callback}
+      - OAUTH2_PROXY_COOKIE_SECURE=${OAUTH2_PROXY_COOKIE_SECURE:-false}
+      - OAUTH2_PROXY_REVERSE_PROXY=${OAUTH2_PROXY_REVERSE_PROXY:-false}
+      # Inject the verified identity to the gateway as X-Auth-Request-* headers.
+      - OAUTH2_PROXY_SET_XAUTHREQUEST=true
+      - OAUTH2_PROXY_PASS_USER_HEADERS=true
+      # Go straight to the IdP (no oauth2-proxy "sign in" interstitial).
+      - OAUTH2_PROXY_SKIP_PROVIDER_BUTTON=true
+      - "OAUTH2_PROXY_WHITELIST_DOMAINS=*"
+    ports:
+      - "${OAUTH2_PROXY_PORT:-18180}:4180"
+    depends_on:
+      - gateway
+
+  gateway:
+    # No build: — the delivery bundle carries prebuilt images and no Dockerfile.
+    image: rst-elastic-ai-copilot-gateway:${GATEWAY_IMAGE_TAG:-1.1.23}
+    container_name: rst-elastic-ai-copilot-sso-gateway
+    environment:
+      # ES/Kibana — form A (default) reads ES_URL / KIBANA_URL from .env;
+      # form B (--profile bundled-elk) falls back to the internal hostnames.
+      - ES_URL=${ES_URL:-http://elasticsearch:9200}
+      - KIBANA_URL=${KIBANA_URL:-http://kibana:5601}
+      - ES_USER=${ES_USER:-}
+      - ES_PASSWORD=${ES_PASSWORD:-}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://ark.cn-beijing.volces.com/api/v3}
+      - LLM_MODEL=${LLM_MODEL:-}
+      # Shared secret — injected upstream by Caddy; oauth2-proxy passes it through.
+      - RST_GATEWAY_SHARED_SECRET=${RST_GATEWAY_SHARED_SECRET:-}
+      - RST_ADMIN_TOKEN=${RST_ADMIN_TOKEN:-}
+      - RST_LICENSE_PUBLIC_KEY_PATH=/app/keys/license_public.pem
+      - RST_SERVER_GUID_FILE=/app/hostid/server_guid
+      - LICENSE_SERVER_URL=${LICENSE_SERVER_URL:-}
+      - RST_TRIAL_DAILY_LIMIT=${RST_TRIAL_DAILY_LIMIT:-200}
+      # ─── SSO (forward-auth) ───
+      - RST_SSO_ENABLED=true
+      - RST_SSO_ENFORCE=${RST_SSO_ENFORCE:-true}
+    # environment: 上面只列这套部署自己要覆盖的默认值。其余几十个已在
+    # .env.example 文档化的键（基线四个索引、告警接入、报表、embed…）靠这一行
+    # 整体进容器 —— 三份 compose 各抄一遍 environment 的下场是客户按文档设了没用，
+    # 而且没有任何地方会报错（docker compose 只把 .env 用于插值）。
+    # prod 那份仍逐条列着：它是发版契约，test_compose_env_passthrough.py 盯着。
+    env_file:
+      - path: .env
+        required: false
+    # 见 docker-compose.prod.yml 同位置注释：降权由镜像 entrypoint 做，这里只
+    # 留它需要的 capability。
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
+    volumes:
+      - sso_gateway_state:/app/state
+      # 容器硬件指纹源 —— 见 docker-compose.prod.yml 同位置注释
+      - ./state/machine-id:/etc/machine-id:ro
+      # 指纹的另一半。1.1.21 前它生在 gateway_state 卷里,卷丢了指纹就变;现在和
+      # machine-id 同目录同寿命,deploy.sh 生成 / 从老卷迁出。同样别重新生成。
+      - ./state/server_guid:/app/hostid/server_guid:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+        required: false       # form A: ES is in bundled-elk profile, not started — skip the dep
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.2
+    container_name: rst-elastic-ai-copilot-sso-kibana
+    profiles: ["bundled-elk"]
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2
+    container_name: rst-elastic-ai-copilot-sso-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - CADDY_SITE_ADDRESS=${CADDY_SITE_ADDRESS:?set CADDY_SITE_ADDRESS}
+      - RST_GATEWAY_SHARED_SECRET=${RST_GATEWAY_SHARED_SECRET:?set RST_GATEWAY_SHARED_SECRET}
+    volumes:
+      - ./Caddyfile.sso:/etc/caddy/Caddyfile:ro
+      - sso_caddy_data:/data
+      - sso_caddy_config:/config
+    depends_on:
+      - oauth2-proxy
+
+volumes:
+  sso_es_data:
+  sso_gateway_state:
+  sso_caddy_data:
+  sso_caddy_config:

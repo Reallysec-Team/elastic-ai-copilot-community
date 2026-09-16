@@ -1,0 +1,57 @@
+# Caddy reverse proxy for the Elastic AI Copilot Gateway.
+#
+# Responsibilities:
+#   1. Terminate TLS (HTTPS) — self-signed internal CA by default.
+#   2. Inject the gateway shared secret so the browser SPA can call /api/*
+#      without ever holding the secret itself.
+#
+# Login is handled by the gateway itself (the /v2 SPA login form, admin
+# account — see RST_ADMIN_PASSWORD_HASH). Caddy adds no second challenge.
+#
+# Used by docker-compose.prod.yml. {$VARS} come from the caddy service env.
+
+{
+	admin off
+}
+
+# Site address — the hostname(s) or IP analysts use to reach the appliance.
+# Set CADDY_SITE_ADDRESS in .env (e.g. copilot.corp.local — multiple allowed,
+# space-separated). Analysts then open  https://<that>/v2/
+{$CADDY_SITE_ADDRESS} {
+
+	# TLS — self-signed internal CA; a cert is issued for the site address
+	# above. For a public-trusted certificate instead, replace with:
+	#   tls /etc/caddy/certs/cert.pem /etc/caddy/certs/key.pem
+	tls internal
+
+	# 安全响应头。三条都是"浏览器该怎么对待这个页面"，和登录方式无关，所以放在
+	# 站点级、两条 handle 都吃得到。
+	#   frame-ancestors  —— 这个界面没有任何被嵌进别人页面的理由，堵点击劫持。
+	#   nosniff          —— 别把上传的 CSV / JSON 猜成可执行类型。
+	#   Referrer-Policy  —— 跳去 Kibana 时不要把本站路径（带告警 id）带过去。
+	# 没加 HSTS 是故意的：这产品有相当一部分部署跑在纯 HTTP 的内网上，
+	# 一旦下发 HSTS，那些站点在浏览器里会被钉死成 https 打不开。要上先确认
+	# 全站有证书，再把下面这行的注释去掉。
+	header {
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		-Server
+		# Strict-Transport-Security "max-age=31536000"
+	}
+
+	# Health probes + Prometheus /metrics bypass auth (uptime monitors /
+	# internal Prometheus scraping reach them without a login).
+	@health path /healthz /readyz /metrics
+	handle @health {
+		reverse_proxy gateway:8000
+	}
+
+	# Everything else: proxy with the shared secret injected. Login is enforced
+	# by the gateway's own /v2 login form, so Caddy adds no Basic-Auth challenge.
+	handle {
+		reverse_proxy gateway:8000 {
+			header_up X-RST-Gateway-Token {$RST_GATEWAY_SHARED_SECRET}
+		}
+	}
+}

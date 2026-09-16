@@ -1,0 +1,71 @@
+# ── Env / secrets — live credentials, NEVER commit ──────────────────
+.env
+.env.*
+!.env.example
+# Dev-mode runtime state: the gateway writes these into poc/ when run
+# locally. poc/llm_providers.yml holds a plaintext LLM API key.
+poc/llm_providers.yml
+poc/settings.yml
+poc/quota.json
+poc/license.json
+poc/license.key
+poc/dashboards.yml
+# 容器硬件指纹源,deploy.sh 生成,每个部署独有
+state/
+
+# ── Python ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# ── Node / frontend build ───────────────────────────────────────────
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# ── Test artifacts ──────────────────────────────────────────────────
+poc/eval/last_run.json
+poc/frontend/e2e/report/
+poc/frontend/e2e/results.json
+poc/frontend/e2e/shots/
+poc/frontend/test-results/
+poc/frontend/playwright-report/
+
+# ── Release bundles ─────────────────────────────────────────────────
+# Customer deploy tarballs built locally by the release flow — ~210MB each,
+# and one per version. They are delivered out of band, not through git.
+RST-Elastic-AI-Copilot-*.tar.gz
+RST-Elastic-AI-Copilot-*.tar.gz.sha256
+
+# ── IDE / OS / tooling ──────────────────────────────────────────────
+.vscode/
+.idea/
+.claude/settings.local.json
+*.swp
+.DS_Store
+Thumbs.db
+
+# key rotation backups — keep local, never commit
+*.bak-*
+*.fork-pre-converge
+
+# ── SEC-CC-1 sealed-feature secrets (RED LINE: plaintext/DK never in git) ──
+# Premium feature PLAINTEXT build inputs — held in the secure build vault,
+# obtained by developers out-of-band, sealed at release time. Never commit.
+poc/backend/premium_src/
+# The sealed ciphertext blob is a RELEASE ARTIFACT, built by
+# scripts/seal_features.py with the real per-feature DK from the secret store
+# (see docs/LICENSING.md). Not committed; produced during the image build.
+poc/backend/premium/*.sealed
+
+# notify Fernet secret key (auto-generated at runtime — NEVER commit)
+.rst_secret_key
+poc/.rst_secret_key
+
+# Serena 的本地索引/记忆，跟这个仓库的内容无关
+.serena/

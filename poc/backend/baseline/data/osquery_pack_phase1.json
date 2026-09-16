@@ -1,0 +1,131 @@
+{
+  "pack_name": "rst-baseline-phase1",
+  "queries": {
+    "HB-ACC-001": {
+      "query": "SELECT username,uid FROM users WHERE uid=0 AND username!='root';",
+      "interval": 3600,
+      "snapshot": true,
+      "platform": "linux",
+      "description": "特权账户（UID=0）唯一性核查"
+    },
+    "HB-ACC-002": {
+      "query": "SELECT username FROM shadow WHERE password_status='not_set';",
+      "interval": 3600,
+      "snapshot": true,
+      "platform": "linux",
+      "description": "空口令账户核查"
+    },
+    "HB-ACC-003": {
+      "query": "SELECT username,max FROM shadow WHERE max>90 AND username NOT IN (SELECT username FROM users WHERE shell LIKE '%nologin' OR shell='/bin/false');",
+      "interval": 3600,
+      "snapshot": true,
+      "platform": "linux",
+      "description": "账户口令最长使用期限核查"
+    },
+    "HB-ACC-004": {
+      "query": "SELECT username,shell FROM users WHERE uid<1000 AND uid!=0 AND shell NOT LIKE '%nologin' AND shell!='/bin/false' AND shell!='/sbin/nologin';",
+      "interval": 3600,
+      "snapshot": true,
+      "platform": "linux",
+      "description": "系统账户登录 shell 限制核查"
+    },
+    "HB-ACC-005": {
+      "query": "SELECT rule_details FROM sudoers WHERE rule_details LIKE '%NOPASSWD%';",
+      "interval": 3600,
+      "snapshot": true,
+      "platform": "linux",
+      "description": "sudo 免密提权（NOPASSWD）核查"
+    },
+    "HB-NET-001": {
+      "query": "SELECT DISTINCT address,port FROM listening_ports WHERE port IN (23,512,513,514,21);",
+      "interval": 3600,
+      "snapshot": true,
+      "platform": "linux",
+      "description": "Telnet 等高危明文端口暴露核查"
+    },
+    "HB-NET-002": {
+      "query": "SELECT name,path FROM processes WHERE name IN ('telnetd','in.telnetd','rshd','in.rshd','rlogind','vsftpd','in.tftpd');",
+      "interval": 3600,
+      "snapshot": true,
+      "platform": "linux",
+      "description": "明文传输服务进程核查"
+    },
+    "HB-NET-003": {
+      "query": "SELECT current_value FROM system_controls WHERE name='net.ipv4.ip_forward';",
+      "interval": 3600,
+      "snapshot": true,
+      "platform": "linux",
+      "description": "IP 转发关闭核查（非路由主机）"
+    },
+    "HB-NET-004": {
+      "query": "SELECT current_value FROM system_controls WHERE name='net.ipv4.conf.all.accept_redirects';",
+      "interval": 3600,
+      "snapshot": true,
+      "platform": "linux",
+      "description": "ICMP 重定向报文禁用核查"
+    },
+    "HB-MAC-001": {
+      "query": "SELECT current_value FROM selinux_settings WHERE key='mode';",
+      "interval": 3600,
+      "snapshot": true,
+      "platform": "linux",
+      "description": "SELinux 强制模式核查"
+    },
+    "HB-FW-001": {
+      "query": "SELECT chain,policy FROM iptables WHERE chain='INPUT';",
+      "interval": 3600,
+      "snapshot": true,
+      "platform": "linux",
+      "description": "主机防火墙启用核查"
+    },
+    "HB-FILE-001": {
+      "query": "SELECT path,mode FROM file WHERE path='/etc/shadow' AND mode NOT IN ('0000','0400','0600','0640');",
+      "interval": 3600,
+      "snapshot": true,
+      "platform": "linux",
+      "description": "/etc/shadow 文件权限核查"
+    },
+    "HB-FILE-002": {
+      "query": "SELECT path,permissions FROM suid_bin WHERE path NOT IN (SELECT path FROM suid_bin WHERE path LIKE '/usr/bin/%' OR path LIKE '/bin/%' OR path LIKE '/usr/sbin/%' OR path LIKE '/sbin/%');",
+      "interval": 3600,
+      "snapshot": true,
+      "platform": "linux",
+      "description": "SUID/SGID 异常提权文件核查"
+    },
+    "HB-FILE-003": {
+      "query": "SELECT path,mode FROM file WHERE (path LIKE '/etc/%' OR path LIKE '/bin/%' OR path LIKE '/sbin/%') AND mode LIKE '%7' AND type='regular';",
+      "interval": 3600,
+      "snapshot": true,
+      "platform": "linux",
+      "description": "系统目录全局可写文件核查"
+    },
+    "HB-PER-001": {
+      "query": "SELECT command,path FROM crontab WHERE command LIKE '%curl%' OR command LIKE '%wget%' OR command LIKE '%/tmp/%' OR command LIKE '%base64%' OR command LIKE '%nc %';",
+      "interval": 3600,
+      "snapshot": true,
+      "platform": "linux",
+      "description": "计划任务（cron）后门核查"
+    },
+    "HB-SYS-001": {
+      "query": "SELECT name,version,platform FROM os_version;",
+      "interval": 3600,
+      "snapshot": true,
+      "platform": "linux",
+      "description": "操作系统版本生命周期（EOL）核查"
+    },
+    "HB-TIME-001": {
+      "query": "SELECT name FROM processes WHERE name IN ('chronyd','ntpd');",
+      "interval": 3600,
+      "snapshot": true,
+      "platform": "linux",
+      "description": "时间同步服务运行核查"
+    },
+    "HB-NET-005": {
+      "query": "SELECT address,hostnames FROM etc_hosts WHERE address NOT IN ('127.0.0.1','::1','127.0.1.1');",
+      "interval": 3600,
+      "snapshot": true,
+      "platform": "linux",
+      "description": "hosts 文件劫持核查"
+    }
+  }
+}

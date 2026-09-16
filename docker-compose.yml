@@ -1,0 +1,148 @@
+# Full-stack deployment: Elasticsearch + Kibana + Gateway in one network.
+#
+#   1. cp .env.example .env   &&  fill in LLM_API_KEY / LLM_MODEL (+ auth in prod)
+#   2. docker compose up -d --build
+#   3. open http://localhost:18765/v2/
+#
+# For dev (Python uvicorn locally with --reload), use poc/docker-compose.yml
+# which only brings up ES + Kibana.
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+    container_name: rst-elastic-ai-copilot-es
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ports:
+      # 只绑本机：这个栈是本地/演示用，ES 关了鉴权（xpack.security.enabled=false），
+      # 绑 0.0.0.0 等于同网段任何人可读写整个集群。
+      - "127.0.0.1:9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.2
+    container_name: rst-elastic-ai-copilot-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "127.0.0.1:5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  userdb:
+    # The enterprise user table (accounts / roles). Local stack only — a
+    # customer deployment points RST_USER_DB_URL at their own Postgres or runs
+    # this same service from docker-compose.prod.yml.
+    image: postgres:16-alpine
+    container_name: rst-elastic-ai-copilot-userdb
+    environment:
+      - POSTGRES_USER=${RST_USER_DB_USER:-rst}
+      - POSTGRES_PASSWORD=${RST_USER_DB_PASSWORD:-rst}
+      - POSTGRES_DB=${RST_USER_DB_NAME:-rst_users}
+    ports:
+      # Host-side port for `pytest backend/tests/test_user_db_postgres.py`.
+      # 15433 (15432 is a common default already taken by other stacks).
+      # Above the Windows dynamic-port range, same reason as 18765 below.
+      # 只绑本机：这张表里是账号和密码哈希，而且口令有默认值。
+      - "127.0.0.1:15433:5432"
+    volumes:
+      - userdb_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${RST_USER_DB_USER:-rst}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rst-elastic-ai-copilot-gateway:${GATEWAY_IMAGE_TAG:-1.1.0}
+    container_name: rst-elastic-ai-copilot-gateway
+    environment:
+      - ES_URL=http://elasticsearch:9200
+      - KIBANA_URL=http://kibana:5601
+      # ─── LLM provider (required) — set in the root .env file ───
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://ark.cn-beijing.volces.com/api/v3}
+      - LLM_MODEL=${LLM_MODEL:-}
+      # ─── Auth — set BOTH in production. Unset = no API auth + localhost-only admin ───
+      - RST_GATEWAY_SHARED_SECRET=${RST_GATEWAY_SHARED_SECRET:-}
+      - RST_ADMIN_TOKEN=${RST_ADMIN_TOKEN:-}
+      - RST_ADMIN_PASSWORD_HASH=${RST_ADMIN_PASSWORD_HASH:-}
+      - RST_ADMIN_USERNAME=${RST_ADMIN_USERNAME:-}
+      # This file is the local/demo stack, reached from the host over the port
+      # mapping below — i.e. a NON-loopback source as far as the container is
+      # concerned. Without this the gateway would refuse those logins for still
+      # using the shipped password, which is exactly what we want in production
+      # and exactly what would break `docker compose up` + e2e here.
+      # Do NOT copy this line into a customer deployment; set
+      # RST_ADMIN_PASSWORD_HASH there instead.
+      - RST_ALLOW_DEFAULT_PASSWORD=${RST_ALLOW_DEFAULT_PASSWORD:-1}
+      # ─── Multi-user (enterprise) — empty = the single configured account ───
+      - RST_USER_DB_URL=${RST_USER_DB_URL:-postgresql://rst:rst@userdb:5432/rst_users}
+      # IdP groups → the three roles. Only read when SSO is on.
+      - RST_RBAC_ADMIN_GROUPS=${RST_RBAC_ADMIN_GROUPS:-}
+      - RST_RBAC_ANALYST_GROUPS=${RST_RBAC_ANALYST_GROUPS:-}
+      - RST_RBAC_VIEWER_GROUPS=${RST_RBAC_VIEWER_GROUPS:-}
+      # ─── License (rst-platform license server; public key baked into image) ───
+      - RST_LICENSE_PUBLIC_KEY_PATH=/app/keys/license_public.pem
+      - LICENSE_SERVER_URL=${LICENSE_SERVER_URL:-}
+      - RST_TRIAL_DAILY_LIMIT=${RST_TRIAL_DAILY_LIMIT:-200}
+      # The deployment's timezone, e.g. +08:00. The DSL prompt uses it so that
+      # "今天下午" / "凌晨 0-6 点" cut the day where the operator does, not where
+      # the cluster's UTC clock does. Empty = UTC.
+      - RST_TIMEZONE=${RST_TIMEZONE:-}
+      # ─── Field masking (cloud / private / airgapped; empty = license-derived) ───
+      - RST_MASKING_MODE=${RST_MASKING_MODE:-}
+      # Settings written from the admin UI (ES connection, alert ingest, audit
+      # sinks). Under the state volume, not the image: the whole point of the
+      # setup wizard is that the customer never edits a file, so this must
+      # survive an image swap.
+      - RST_SETTINGS_FILE=/app/state/settings.yml
+      # 密钥文件放持久化卷。默认是相对 CWD 的 /app/.rst_secret_key —— 在镜像层里，
+      # 升级一次镜像就换一把新钥匙，飞书/钉钉的签名密钥和 SMTP 密码会全部变成
+      # 解不开的密文，现象是投递突然签名不符，且看不出原因。
+      - RST_SECRET_KEY_FILE=/app/state/.rst_secret_key
+    # environment: 上面只列这套部署自己要覆盖的默认值。其余几十个已在
+    # .env.example 文档化的键（基线四个索引、告警接入、报表、embed…）靠这一行
+    # 整体进容器 —— 三份 compose 各抄一遍 environment 的下场是设了没用，而且没有
+    # 任何地方会报错（docker compose 只把 .env 用于插值）。
+    # prod 那份仍逐条列着：它是发版契约，test_compose_env_passthrough.py 盯着。
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      # host:container — uvicorn listens on 8000 inside; 18765 on the host.
+      # 18765 (not 8765) sits ABOVE the Windows TCP dynamic-port range
+      # (1024–15000): Docker Desktop's winnat reserves rotating blocks inside
+      # that range, which would otherwise make 8765 intermittently unbindable.
+      - "18765:8000"
+    volumes:
+      # Writable runtime state (settings / providers / dashboards / quota /
+      # license.key / server_guid) — persists across restarts.
+      - gateway_state:/app/state
+      # 容器硬件指纹源(license SDK 需要稳定的 machine-id;slim 镜像里 /etc/machine-id
+      # 是空的,且 docker veth 的 MAC 被 SDK 当作随机地址拒掉)。文件由 deploy.sh
+      # 生成或手工 `openssl rand -hex 16 > state/machine-id`;千万别重新生成 ——
+      # 换文件 = 换硬件,license 要重激活。
+      - ./state/machine-id:/etc/machine-id:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      userdb:
+        condition: service_healthy
+
+volumes:
+  es_data:
+  gateway_state:
+  userdb_data:

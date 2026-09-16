@@ -1,0 +1,8 @@
+# 开发/CI 测试依赖（运行时镜像不装，见 Dockerfile 只装 requirements.txt）。
+pytest>=8,<9
+# REQUIRED, not optional: ~92 of the suite's tests are `async def` with
+# @pytest.mark.asyncio. Without this plugin pytest does not skip them — it
+# ERRORS each one with "async def functions are not natively supported", which
+# reads as 92 broken tests and trains everyone to ignore a red suite. With it,
+# the full suite is 442 passing.
+pytest-asyncio>=0.23

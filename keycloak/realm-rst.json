@@ -1,0 +1,174 @@
+{
+  "realm": "rst-copilot",
+  "enabled": true,
+  "displayName": "RST Elastic AI Copilot",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "groups": [
+    { "name": "soc-analysts" }
+  ],
+  "users": [
+    {
+      "username": "analyst",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "analyst@rst.local",
+      "firstName": "Test",
+      "lastName": "Analyst",
+      "credentials": [
+        { "type": "password", "value": "analyst123", "temporary": false }
+      ],
+      "groups": [ "/soc-analysts" ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "rst-copilot-proxy",
+      "name": "oauth2-proxy (RST Copilot)",
+      "description": "OIDC client for the oauth2-proxy forward-auth gateway.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "rst-oauth2-proxy-dev-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [ "*" ],
+      "webOrigins": [ "*" ],
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "config": {
+            "claim.name": "groups",
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "identityProviders": [
+    {
+      "alias": "corp-saml",
+      "displayName": "Corp SAML 登录",
+      "providerId": "saml",
+      "enabled": true,
+      "trustEmail": true,
+      "storeToken": false,
+      "config": {
+        "singleSignOnServiceUrl": "http://localhost:18081/realms/corp-saml-idp/protocol/saml",
+        "idpEntityId": "http://localhost:18081/realms/corp-saml-idp",
+        "nameIDPolicyFormat": "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent",
+        "principalType": "ATTRIBUTE",
+        "principalAttribute": "email",
+        "postBindingResponse": "true",
+        "postBindingAuthnRequest": "true",
+        "postBindingLogout": "true",
+        "wantAuthnRequestsSigned": "false",
+        "wantAssertionsSigned": "false",
+        "wantAssertionsEncrypted": "false",
+        "validateSignature": "false",
+        "signSpMetadata": "false",
+        "syncMode": "FORCE"
+      }
+    }
+  ],
+  "identityProviderMappers": [
+    {
+      "name": "email",
+      "identityProviderAlias": "corp-saml",
+      "identityProviderMapper": "saml-user-attribute-idp-mapper",
+      "config": { "attribute.name": "email", "user.attribute": "email", "syncMode": "INHERIT" }
+    },
+    {
+      "name": "firstName",
+      "identityProviderAlias": "corp-saml",
+      "identityProviderMapper": "saml-user-attribute-idp-mapper",
+      "config": { "attribute.name": "firstName", "user.attribute": "firstName", "syncMode": "INHERIT" }
+    },
+    {
+      "name": "lastName",
+      "identityProviderAlias": "corp-saml",
+      "identityProviderMapper": "saml-user-attribute-idp-mapper",
+      "config": { "attribute.name": "lastName", "user.attribute": "lastName", "syncMode": "INHERIT" }
+    }
+  ],
+  "components": {
+    "org.keycloak.storage.UserStorageProvider": [
+      {
+        "name": "corp-ad-ldap",
+        "providerId": "ldap",
+        "config": {
+          "enabled": ["true"],
+          "priority": ["1"],
+          "vendor": ["other"],
+          "connectionUrl": ["ldap://openldap:389"],
+          "bindDn": ["cn=admin,dc=rst,dc=local"],
+          "bindCredential": ["ldapadmin"],
+          "usersDn": ["ou=users,dc=rst,dc=local"],
+          "usernameLDAPAttribute": ["uid"],
+          "rdnLDAPAttribute": ["uid"],
+          "uuidLDAPAttribute": ["entryUUID"],
+          "userObjectClasses": ["inetOrgPerson, organizationalPerson"],
+          "searchScope": ["1"],
+          "editMode": ["READ_ONLY"],
+          "importEnabled": ["true"],
+          "syncRegistrations": ["false"],
+          "trustEmail": ["true"]
+        },
+        "subComponents": {
+          "org.keycloak.storage.ldap.mappers.LDAPStorageMapper": [
+            {
+              "name": "username",
+              "providerId": "user-attribute-ldap-mapper",
+              "config": {
+                "ldap.attribute": ["uid"],
+                "user.model.attribute": ["username"],
+                "read.only": ["true"],
+                "always.read.value.from.ldap": ["false"],
+                "is.mandatory.in.ldap": ["true"]
+              }
+            },
+            {
+              "name": "email",
+              "providerId": "user-attribute-ldap-mapper",
+              "config": {
+                "ldap.attribute": ["mail"],
+                "user.model.attribute": ["email"],
+                "read.only": ["true"],
+                "always.read.value.from.ldap": ["true"],
+                "is.mandatory.in.ldap": ["false"]
+              }
+            },
+            {
+              "name": "first name",
+              "providerId": "user-attribute-ldap-mapper",
+              "config": {
+                "ldap.attribute": ["givenName"],
+                "user.model.attribute": ["firstName"],
+                "read.only": ["true"],
+                "always.read.value.from.ldap": ["true"],
+                "is.mandatory.in.ldap": ["false"]
+              }
+            },
+            {
+              "name": "last name",
+              "providerId": "user-attribute-ldap-mapper",
+              "config": {
+                "ldap.attribute": ["sn"],
+                "user.model.attribute": ["lastName"],
+                "read.only": ["true"],
+                "always.read.value.from.ldap": ["true"],
+                "is.mandatory.in.ldap": ["true"]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

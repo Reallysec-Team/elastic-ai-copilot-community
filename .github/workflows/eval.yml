@@ -1,0 +1,102 @@
+name: NL→DSL Eval Gate
+
+on:
+  pull_request:
+    paths:
+      - "poc/backend/**"
+      - "poc/eval/**"
+      - "poc/scripts/**"
+      - "poc/requirements.txt"
+      - ".github/workflows/eval.yml"
+  push:
+    branches: [main]
+    # Same filter as the PR trigger. Without it every push to main spent 30 LLM
+    # calls, including pushes that touched only docs or the frontend.
+    paths:
+      - "poc/backend/**"
+      - "poc/eval/**"
+      - "poc/scripts/**"
+      - "poc/requirements.txt"
+      - ".github/workflows/eval.yml"
+  workflow_dispatch:
+    inputs:
+      gate:
+        description: "Pass rate threshold (0-1) — applied to BOTH bars"
+        # Same floor the push trigger uses. It used to default to 0.9, which is
+        # 27/30: stricter than the documented contract, and reached only by
+        # remembering to pass a value. Type a higher number to be strict on
+        # purpose.
+        default: "0.8"
+        required: false
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: poc
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: poc/requirements.txt
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt
+
+      - name: Start Elasticsearch
+        # The eval only talks to ES (get_mapping / execute_search). Kibana was
+        # only the data loader, and its sample_data route 404s in this image even
+        # once it reports "available" — so we skip Kibana and seed ES directly.
+        run: docker compose up -d elasticsearch
+
+      - name: Wait for Elasticsearch
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -m 5 \
+              "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=2s" || true)
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 2
+          done
+          echo "Elasticsearch did not become healthy in 60s"
+          docker logs rst-elastic-ai-copilot-poc-es | tail -50
+          exit 1
+
+      - name: Seed eval data
+        env:
+          ES_URL: http://localhost:9200
+        run: python scripts/seed_eval_data.py
+
+      - name: Run eval gate
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          ES_URL: http://localhost:9200
+        run: |
+          # Floor = the documented ≥80% one-shot contract (avoids false CI reds
+          # on normal LLM variance). Manual dispatch can pass a stricter value.
+          #
+          # Both bars get the same floor. `correct` is the one that says the DSL
+          # answered the question, and it is strictly the harder of the two, so
+          # it is what actually gates here — but its own history is one run
+          # (28/30 = 93%, 2026-07-23), not enough to justify anything tighter.
+          THRESHOLD="${{ github.event.inputs.gate || '0.8' }}"
+          python -m eval.run --gate "$THRESHOLD" --gate-correct "$THRESHOLD"
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-last-run-${{ github.run_id }}
+          path: poc/eval/last_run.json
+          if-no-files-found: warn
+
+      - name: Tear down docker
+        if: always()
+        run: docker compose down -v

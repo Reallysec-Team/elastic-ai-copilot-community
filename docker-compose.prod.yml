@@ -1,0 +1,298 @@
+# Hardened production stack — Gateway behind a Caddy reverse proxy that
+# terminates TLS. Login is the gateway's own /v2 form (no Caddy Basic Auth).
+#
+# This deployment connects to the CUSTOMER'S EXISTING Elasticsearch 8.x — it does
+# NOT run Elasticsearch or Kibana. Only the gateway + Caddy are started here; set
+# ES_URL (and ES auth/TLS) in .env to point at the customer cluster.
+#   - Need a self-contained PoC WITH bundled ES/Kibana instead? Use the dev stack
+#     at poc/docker-compose.yml (ships single-node ES + Kibana for testing).
+#
+# Only Caddy (:443) is exposed on the host. The gateway sits on the internal
+# Docker network and reaches the customer ES over their network.
+#
+# Setup — run ./deploy.sh. It loads the bundled image tar, collects the config,
+# writes .env and starts the stack:
+#   ./deploy.sh
+#   open https://<CADDY_SITE_ADDRESS>/v2/
+#
+# Manual path (only if you cannot run deploy.sh) — the delivery ships PREBUILT
+# images, there is no Dockerfile in it, so never pass --build:
+#   1. gunzip -c RST-Elastic-AI-Copilot-images-*.tar.gz | docker load
+#      and put the loaded gateway tag in .env as GATEWAY_IMAGE_TAG=<tag>.
+#   2. cp .env.example .env  — fill LLM_*, RST_GATEWAY_SHARED_SECRET,
+#      RST_ADMIN_TOKEN, and the Elasticsearch block (ES_URL + ES_USER/ES_PASSWORD;
+#      8.x usually has security on). For HTTPS ES set RST_ES_VERIFY_CERTS=true and
+#      RST_ES_CA_CERT=/certs/es-ca.pem (drop the CA into ./certs).
+#   3. mkdir -p state && openssl rand -hex 16 > state/machine-id #        && cat /proc/sys/kernel/random/uuid > state/server_guid && chmod 644 state/*
+#      (container hardware fingerprint = both files — see the ./state/* volumes
+#      below. Skip either and docker bind-mounts a DIRECTORY there: license
+#      activation fails with "no hardware identifier available" / the gateway
+#      cannot start, neither of which is a license fault. 644, not 600: the
+#      gateway runs as uid 10001 and must read them.)
+#   5. docker compose -f docker-compose.prod.yml up -d
+#   6. open https://<CADDY_SITE_ADDRESS>/v2/
+
+services:
+  gateway:
+    # No build: — the delivery bundle carries prebuilt images and no Dockerfile.
+    # Tag is installer-managed: rst-update.sh writes GATEWAY_IMAGE_TAG into .env
+    # on a health-gated release install / rollback (P4). Default preserves the
+    # pre-P4 behaviour when the var is unset.
+    image: rst-elastic-ai-copilot-gateway:${GATEWAY_IMAGE_TAG:-1.1.23}
+    container_name: rst-elastic-ai-copilot-gateway
+    restart: unless-stopped
+    # Resource ceiling so one runaway request / memory leak can't starve the
+    # host. Override in .env per host size.
+    deploy:
+      resources:
+        limits:
+          cpus: "${RST_GATEWAY_CPUS:-2}"
+          memory: ${RST_GATEWAY_MEM:-2g}
+    environment:
+      # ── Customer Elasticsearch (REQUIRED — this stack ships no ES) ──
+      - ES_URL=${ES_URL:?set ES_URL to the customer's Elasticsearch endpoint in .env}
+      - ES_USER=${ES_USER:-}
+      - ES_PASSWORD=${ES_PASSWORD:-}
+      # HTTPS ES: verify the server cert and (for a private CA) point at the bundle.
+      - RST_ES_VERIFY_CERTS=${RST_ES_VERIFY_CERTS:-}
+      - RST_ES_CA_CERT=${RST_ES_CA_CERT:-}
+      - RST_ES_TIMEOUT_S=${RST_ES_TIMEOUT_S:-30}
+      - RST_ES_MAX_RETRIES=${RST_ES_MAX_RETRIES:-}
+      - RST_ES_MAX_POOL_SIZE=${RST_ES_MAX_POOL_SIZE:-}
+      # Restrict which indices are queryable (security control — leave empty to
+      # allow all). Set to the customer's log indices, e.g. logs-*,filebeat-*.
+      - RST_INDEX_WHITELIST=${RST_INDEX_WHITELIST:-}
+      # Empty = no cross-origin access, which is right when the gateway serves
+      # the SPA. See .env.example before setting it.
+      - RST_CORS_ORIGINS=${RST_CORS_ORIGINS:-}
+      # Restricts where audit events may be POSTed. See .env.example.
+      - RST_AUDIT_WEBHOOK_ALLOWLIST=${RST_AUDIT_WEBHOOK_ALLOWLIST:-}
+      # Kibana is OPTIONAL — only used to build "在 Kibana 中打开" deep-links.
+      # Point KIBANA_URL at the customer Kibana the analyst's browser can reach
+      # (or leave blank to disable the deep-link feature).
+      - KIBANA_URL=${KIBANA_URL:-}
+      - KIBANA_PUBLIC_URL=${KIBANA_PUBLIC_URL:-}
+      # ── LLM provider (REQUIRED) ──
+      - LLM_API_KEY=${LLM_API_KEY:?set LLM_API_KEY in .env}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://ark.cn-beijing.volces.com/api/v3}
+      - LLM_MODEL=${LLM_MODEL:?set LLM_MODEL in .env}
+      - LLM_TIMEOUT_S=${LLM_TIMEOUT_S:-}
+      # 推理强度（思考模式）——见 .env.example 同名段；不设走网关按任务的默认。
+      - LLM_REASONING=${LLM_REASONING:-}
+      - RST_NL2DSL_REASONING=${RST_NL2DSL_REASONING:-}
+      - RST_LLM_FIRST_TOKEN_TIMEOUT_S=${RST_LLM_FIRST_TOKEN_TIMEOUT_S:-}
+      - RST_EMBED_COOLDOWN_S=${RST_EMBED_COOLDOWN_S:-}
+      # Embeddings — REQUIRED for the RAG knowledge base (/api/kb/*). Without
+      # these three the KB silently never works, whatever .env says.
+      - RST_EMBED_MODEL=${RST_EMBED_MODEL:-}
+      - RST_EMBED_BASE_URL=${RST_EMBED_BASE_URL:-}
+      - RST_EMBED_DIM=${RST_EMBED_DIM:-}
+      # ── Auth — required in this stack. Caddy injects the shared secret upstream. ──
+      - RST_GATEWAY_SHARED_SECRET=${RST_GATEWAY_SHARED_SECRET:?set RST_GATEWAY_SHARED_SECRET in .env}
+      - RST_ADMIN_TOKEN=${RST_ADMIN_TOKEN:?set RST_ADMIN_TOKEN in .env}
+      # /metrics 的抓取令牌。不设 = 谁都能抓（既有行为），见 .env.example。
+      - RST_METRICS_TOKEN=${RST_METRICS_TOKEN:-}
+      # IdP groups granted admin under SSO. Without it nobody can ever be admin
+      # (is_admin() is group-only once SSO is on) and the 403 blames the IdP.
+      - RST_RBAC_ADMIN_GROUPS=${RST_RBAC_ADMIN_GROUPS:-}
+      # The other two roles. Unset means an SSO user outside the admin groups
+      # gets no role at all, which is the pre-3.0 behaviour: allowed to write,
+      # not allowed to administer. Name a group here to actually enforce
+      # read-only.
+      - RST_RBAC_ANALYST_GROUPS=${RST_RBAC_ANALYST_GROUPS:-}
+      - RST_RBAC_VIEWER_GROUPS=${RST_RBAC_VIEWER_GROUPS:-}
+      # ── Multi-user (enterprise) ──
+      # Empty = one account, from the two vars below. Set it and the gateway
+      # keeps accounts and roles in that database instead, seeding the first
+      # administrator from RST_ADMIN_USERNAME / RST_ADMIN_PASSWORD_HASH.
+      # The `userdb` service below is there if the customer has no Postgres of
+      # their own; point this at theirs and delete it if they do.
+      - RST_USER_DB_URL=${RST_USER_DB_URL:-}
+      # In-app login. Empty hash = the shipped admin / Admin@123 default, which
+      # is published — replace it. See .env.example for the generate command.
+      - RST_ADMIN_PASSWORD_HASH=${RST_ADMIN_PASSWORD_HASH:-}
+      - RST_ADMIN_USERNAME=${RST_ADMIN_USERNAME:-}
+      - RST_SESSION_TTL_HOURS=${RST_SESSION_TTL_HOURS:-}
+      # Empty on purpose: a production deployment that still has the factory
+      # password should refuse remote logins until a hash is set.
+      - RST_ALLOW_DEFAULT_PASSWORD=${RST_ALLOW_DEFAULT_PASSWORD:-}
+      - RST_SHARED_BUCKET_FALLBACK=${RST_SHARED_BUCKET_FALLBACK:-}
+      # Per-IP request ceilings. Raise for a large team behind one NAT egress.
+      - RST_RATELIMIT_GENERATE=${RST_RATELIMIT_GENERATE:-}
+      - RST_RATELIMIT_EXECUTE=${RST_RATELIMIT_EXECUTE:-}
+      - RST_RATELIMIT_KIBANA_LINK=${RST_RATELIMIT_KIBANA_LINK:-}
+      # Multi-turn conversation memory. Default `es` persists it in the
+      # customer's ES (.rst_copilot_conversations, alongside the other
+      # .rst_copilot_* indices) so history survives restarts and is shared
+      # across workers; set `memory` to keep it in-process (dies with the
+      # container, 1h idle expiry).
+      - RST_CONVERSATION_BACKEND=${RST_CONVERSATION_BACKEND:-es}
+      - RST_CONVERSATION_INDEX=${RST_CONVERSATION_INDEX:-}
+      - RST_CONVERSATION_TTL_DAYS=${RST_CONVERSATION_TTL_DAYS:-}
+      # Response caches (cut duplicate LLM/ES cost).
+      - RST_DSL_CACHE_TTL_S=${RST_DSL_CACHE_TTL_S:-}
+      - RST_FIELD_DICT_CACHE_TTL_S=${RST_FIELD_DICT_CACHE_TTL_S:-}
+      # ── License ──
+      - RST_LICENSE_PUBLIC_KEY_PATH=/app/keys/license_public.pem
+      - LICENSE_SERVER_URL=${LICENSE_SERVER_URL:-}
+      - RST_TRIAL_DAILY_LIMIT=${RST_TRIAL_DAILY_LIMIT:-200}
+      # ── Online update (content packs + image releases) ──
+      # Current running version — the heartbeat sends it, and the server only
+      # offers a release/content pack newer than this. Keep in lockstep with
+      # GATEWAY_IMAGE_TAG (rst-update.sh bumps the tag on install).
+      - APP_VERSION=${APP_VERSION:-${GATEWAY_IMAGE_TAG:-1.1.23}}
+      # Vendor content/release signing PUBLIC key — content packs + online releases
+      # verify against it fail-closed. OPTIONAL: leave unset and verification falls
+      # back to the built-in license public key (fine until you ship dedicated-key
+      # signed content). To enable dedicated content signing, drop the vendor
+      # content_public.pem into ./certs and set this to /certs/content_public.pem.
+      - RST_CONTENT_PUBLIC_KEY_PATH=${RST_CONTENT_PUBLIC_KEY_PATH:-}
+      # Content-pack cache under the /app/state volume so it survives image
+      # swaps (default is a container-layer dir, lost on every update).
+      - RST_CONTENT_DIR=/app/state/content
+      # Release staging — a HOST bind mount (see volumes) so the host-side
+      # rst-update.sh reads staged artifacts + current.json the container wrote.
+      - RST_RELEASE_DIR=/app/release
+      # ── Audit (security product → recommend on) + retention ──
+      # The audit index grows without bound unless ILM is bootstrapped; the
+      # retention window only applies once RST_ILM_BOOTSTRAP is on.
+      - RST_AUDIT_ENABLED=${RST_AUDIT_ENABLED:-}
+      - RST_ILM_BOOTSTRAP=${RST_ILM_BOOTSTRAP:-}
+      - RST_AUDIT_RETENTION_DAYS=${RST_AUDIT_RETENTION_DAYS:-}
+      - RST_MASKING_MODE=${RST_MASKING_MODE:-}
+      # Settings written from the admin UI (ES connection, alert ingest, audit
+      # sinks). Under the state volume, not the image: the whole point of the
+      # setup wizard is that the customer never edits a file, so this must
+      # survive an image swap.
+      - RST_SETTINGS_FILE=/app/state/settings.yml
+      # 密钥文件放持久化卷。默认是相对 CWD 的 /app/.rst_secret_key —— 在镜像层里，
+      # 升级一次镜像就换一把新钥匙，飞书/钉钉的签名密钥和 SMTP 密码会全部变成
+      # 解不开的密文，现象是投递突然签名不符，且看不出原因。
+      - RST_SECRET_KEY_FILE=/app/state/.rst_secret_key
+      # ── Scheduled patrols — each gates a whole feature and is OFF unless set ──
+      # Report scheduler (daily/weekly/monthly csv) and baseline polling.
+      - RST_REPORT_SCHEDULE=${RST_REPORT_SCHEDULE:-}
+      - RST_REPORT_WEBHOOK_URL=${RST_REPORT_WEBHOOK_URL:-}
+      - RST_REPORT_WEBHOOK_HEADERS=${RST_REPORT_WEBHOOK_HEADERS:-}
+      - RST_REPORT_PERSIST=${RST_REPORT_PERSIST:-}
+      - RST_REPORT_INDEX=${RST_REPORT_INDEX:-}
+      - RST_REPORT_CHECK_INTERVAL_SECONDS=${RST_REPORT_CHECK_INTERVAL_SECONDS:-}
+      # 提示词里「当前时间」和日界用的时区。不设 = UTC —— 对 UTC+8 的客户，
+      # 「今天下午」「昨天」「23号」全会按 UTC 切日界，查出来是空的或错的一天。
+      # dev compose 一直传着它，prod 漏了。
+      - RST_TIMEZONE=${RST_TIMEZONE:-}
+      - RST_SERVER_GUID_FILE=/app/hostid/server_guid
+      - RST_REPORT_TZ=${RST_REPORT_TZ:-}
+      - RST_REPORT_CATCHUP_MAX=${RST_REPORT_CATCHUP_MAX:-}
+      # >= 300 to take effect; unset = manual-only baseline runs.
+      - RST_BASELINE_INTERVAL_SECONDS=${RST_BASELINE_INTERVAL_SECONDS:-}
+      # Freshness window (hours, default 48). osquery data older than this is
+      # judged `stale` instead of pass/fail. Raise above 2x the pack interval
+      # when the customer's osquery pack runs slower than daily.
+      - RST_BASELINE_MAX_AGE_HOURS=${RST_BASELINE_MAX_AGE_HOURS:-}
+      # Host roster window (days, default 30) — hosts silent longer than this
+      # stop being enumerated. Hosts inside it but stale still show up as stale.
+      - RST_BASELINE_HOST_ROSTER_DAYS=${RST_BASELINE_HOST_ROSTER_DAYS:-}
+      # Baseline touches two index families in OPPOSITE directions: it READS the
+      # customer's osquery results and WRITES its own verdicts. The read one used
+      # to be RST_BASELINE_RESULT_INDEX — one letter from the write one below,
+      # which is how an operator isolating indices silently points the reader at
+      # our own output and sees an empty baseline page. The old name still works.
+      - RST_BASELINE_OSQUERY_INDEX=${RST_BASELINE_OSQUERY_INDEX:-}
+      # 老 .env 里的旧名照传，回落由后端一处做（`baseline/result_reader.py`）。
+      - RST_BASELINE_RESULT_INDEX=${RST_BASELINE_RESULT_INDEX:-}
+      - RST_BASELINE_RESULTS_INDEX=${RST_BASELINE_RESULTS_INDEX:-}
+      - RST_BASELINE_RULES_INDEX=${RST_BASELINE_RULES_INDEX:-}
+      - RST_BASELINE_RUNS_INDEX=${RST_BASELINE_RUNS_INDEX:-}
+      # ── Real-time alerts (optional) ──
+      # Source A (pull): tail a Kibana/ES detection-alerts index. Set to the read
+      # alias, e.g. .alerts-security.alerts-default. The gateway's ES account needs
+      # read on it (+ its .internal.* backing indices). Leave blank to disable.
+      - RST_ALERT_INGEST_INDEX=${RST_ALERT_INGEST_INDEX:-}
+      - RST_ALERT_INGEST_INTERVAL_SECONDS=${RST_ALERT_INGEST_INTERVAL_SECONDS:-10}
+      # 一次 webhook 推送最多 200 条告警、每条一次 LLM 摘要：并发上限 + 摘要的
+      # 时间预算。超预算的照旧入库，只是没有摘要（见 .env.example 里的说明）。
+      - RST_ALERT_INGEST_CONCURRENCY=${RST_ALERT_INGEST_CONCURRENCY:-}
+      - RST_ALERT_INGEST_BUDGET_S=${RST_ALERT_INGEST_BUDGET_S:-}
+      # Source B (push): shared secret for the Kibana webhook connector's
+      # X-RST-Alert-Token header. Blank = webhook ingest disabled (endpoint 403s).
+      - RST_ALERT_WEBHOOK_SECRET=${RST_ALERT_WEBHOOK_SECRET:-}
+    # 容器内不留多余权限：镜像的 entrypoint 会把进程降到 uid 10001（见
+    # docker-entrypoint.sh），这里只保留它修正 state 卷属主和降权所需的几个
+    # capability。不写 user: —— 老部署的 gateway_state 卷是 root 建的，直接钉死
+    # uid 会让升级时容器起不来，属主交给 entrypoint 修。
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
+    volumes:
+      - gateway_state:/app/state
+      # Custom CA bundle for the customer's HTTPS ES (referenced by RST_ES_CA_CERT
+      # as /certs/...). Harmless when unused.
+      - ./certs:/certs:ro
+      # 容器硬件指纹源(license SDK 需要稳定的 machine-id;slim 镜像里 /etc/machine-id
+      # 是空的,且 docker veth 的 MAC 被 SDK 当作随机地址拒掉)。文件由 deploy.sh
+      # 生成,千万别重新生成 —— 换文件 = 换硬件,license 要重激活。
+      - ./state/machine-id:/etc/machine-id:ro
+      # 指纹的另一半。1.1.21 前它生在 gateway_state 卷里,卷丢了指纹就变;现在和
+      # machine-id 同目录同寿命,deploy.sh 生成 / 从老卷迁出。同样别重新生成。
+      - ./state/server_guid:/app/hostid/server_guid:ro
+      # (Dedicated content signing is opt-in: put the vendor content_public.pem in
+      # ./certs and point RST_CONTENT_PUBLIC_KEY_PATH at /certs/content_public.pem.
+      # Not mounted by default — verification falls back to the built-in license key.)
+      # Release staging shared with the host installer: release_store (in the
+      # container) writes staged artifacts + current.json here on heartbeat;
+      # rst-update.sh (on the host, default RELEASE_DIR=./release) reads them to
+      # docker-load + health-gate the swap. MUST be a bind mount — a named
+      # volume is not readable by the host script.
+      - ./release:/app/release
+
+  # Enterprise user table. Only needed when RST_USER_DB_URL is set; leave it
+  # stopped (`docker compose up -d gateway caddy`) on a single-account install.
+  #
+  # Backups: this volume holds the accounts. Losing it means everyone signs in
+  # again as the seeded administrator — see docs/BACKUP.md.
+  userdb:
+    image: postgres:16-alpine
+    container_name: rst-elastic-ai-copilot-userdb
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${RST_USER_DB_USER:-rst}
+      - POSTGRES_PASSWORD=${RST_USER_DB_PASSWORD:?set RST_USER_DB_PASSWORD in .env when using the bundled user database}
+      - POSTGRES_DB=${RST_USER_DB_NAME:-rst_users}
+    volumes:
+      - userdb_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${RST_USER_DB_USER:-rst}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  caddy:
+    image: caddy:2
+    container_name: rst-elastic-ai-copilot-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - CADDY_SITE_ADDRESS=${CADDY_SITE_ADDRESS:?set CADDY_SITE_ADDRESS to the hostname or IP analysts use}
+      - RST_GATEWAY_SHARED_SECRET=${RST_GATEWAY_SHARED_SECRET:?set RST_GATEWAY_SHARED_SECRET in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - gateway
+
+volumes:
+  gateway_state:
+  userdb_data:
+  caddy_data:
+  caddy_config:

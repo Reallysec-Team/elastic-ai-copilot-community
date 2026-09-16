@@ -1,0 +1,63 @@
+name: Backend Tests
+
+# 后端 pytest 回归门。判定/许可/状态等逻辑（含安全基线巡检）的单测必须在
+# 每个改后端的 PR 上跑绿。与 NL→DSL Eval Gate 互补：eval 看 LLM 端到端质量，
+# 本门看确定性逻辑正确性，且不需要 LLM secrets（跑得快、对外部 fork PR 也可用）。
+
+on:
+  pull_request:
+    paths:
+      - "poc/backend/**"
+      - "poc/scripts/**"
+      - "poc/requirements.txt"
+      - "poc/requirements-dev.txt"
+      - ".github/workflows/tests.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: poc
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: poc/requirements.txt
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Start Elasticsearch
+        # 少数 API 层测试（/api/state CRUD 往返）需要真 ES；缺 ES 时它们自跳过，
+        # 但 CI 提供 ES 以覆盖到位。判定/纯函数测试全 mock，不依赖 ES。
+        run: docker compose up -d elasticsearch
+
+      - name: Wait for Elasticsearch
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -m 5 \
+              "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=2s" || true)
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 2
+          done
+          echo "Elasticsearch did not become healthy in 60s"
+          docker logs rst-elastic-ai-copilot-poc-es | tail -50
+          exit 1
+
+      - name: Run pytest
+        env:
+          ES_URL: http://localhost:9200
+        run: python -m pytest backend/tests/ -q
+
+      - name: Tear down docker
+        if: always()
+        run: docker compose down -v

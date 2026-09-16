@@ -1,0 +1,56 @@
+# Sample RAG seed document — used as a real test fixture for /api/kb/upload.
+# Style: 真实运维 / SOC 视角，混用中英文（这是国内客户运维手册的真实写法）。
+# Load it with:
+#   curl -X POST http://localhost:8000/api/kb/upload \
+#        -H 'Content-Type: application/json' \
+#        --data-binary @<(yq -o=json eval/rag_seed.yaml)
+
+title: "Sample Runbook: Nginx 5xx 故障排查"
+metadata:
+  category: runbook
+  service: nginx
+  severity: high
+  owner: sre-team
+  version: "1.2"
+content: |
+  # Nginx 5xx 故障排查 Runbook
+
+  ## 适用场景
+  本 Runbook 用于处理 Nginx access log 中出现大量 5xx 状态码（500 / 502 / 503 / 504）的告警。
+  典型触发条件：5 分钟内 5xx 比例 > 1%，或单分钟 5xx 绝对数 > 100。
+  告警源：Elastic Watcher / Kibana Alerting，索引一般是 `kibana_sample_data_logs` 或 `nginx-access-*`。
+
+  ## 第一步：确认告警是否真实
+  先在 Discover / Dashboard 上把时间窗拉到告警触发前后 ±15 分钟，按 `response.keyword` 做 terms 聚合，确认 5xx 是不是真的飙升。
+  常见误报：上游 API 返回 4xx 被错误归类为 5xx（看 `response` 字段类型是不是 keyword）；时区错配（`@timestamp` 用 UTC，告警阈值是按本地时间设的）；采样率突然提升导致绝对数变高但比例没变。
+  如果是误报，去 alert rule 里调阈值或加 `bytes > 0` 之类的过滤条件。
+
+  ## 第二步：定位 5xx 的分布
+  按以下维度 group by 看分布，能很快缩小排查范围：
+  - `host.name` / `agent.hostname`：是单台机器的问题还是集群整体？单机 → 多半是该实例硬件 / 进程问题；全集群 → 多半是 upstream / 配置问题。
+  - `request.keyword` 或 `url.path`：5xx 集中在哪个 URL？某个 API 路径独占 → 该 service 自己的问题；全 URL 均匀 → Nginx 本身或共用 upstream 的问题。
+  - `clientip` / `geoip.country_iso_code`：是不是某个国家 / IP 段集中？是 → 怀疑 DDoS 或爬虫触发限流。
+  - `response`：500 vs 502 vs 503 vs 504 的占比。502/504 → 上游问题；500 → 应用代码异常；503 → Nginx 主动限流 / upstream 不可用。
+
+  ## 第三步：按状态码细分根因
+  - **502 Bad Gateway**：Nginx 连不上 upstream。检查 upstream 进程是否存活（`systemctl status` / `kubectl get pods`）、upstream 端口是否监听、Nginx → upstream 的网络（防火墙、SG、Service Mesh sidecar）。错误日志看 `connect() failed` / `upstream prematurely closed connection`。
+  - **504 Gateway Timeout**：upstream 响应慢于 `proxy_read_timeout`（默认 60s）。看 upstream 应用的慢查询 / GC / 锁等待；临时缓解可以调大 timeout，但根因还是要修。
+  - **503 Service Unavailable**：通常是 Nginx 自己的限流（`limit_req` / `limit_conn`）触发，或者 upstream block 全部 down。看 Nginx error log 里有没有 `limiting requests` 关键字。
+  - **500 Internal Server Error**：upstream 应用层异常（PHP-FPM / uwsgi / Node.js 抛未捕获异常）。直接去看应用日志，关联字段 `request_id` / `trace_id`。
+
+  ## 第四步：取证 & 关联调查
+  在 Kibana 里把这几个查询保存好，事后复盘要用：
+  1. 5xx 时间序列：`response: [500 TO 599]`，按 1m 间隔做 date_histogram。
+  2. Top 故障 URL：`response: [500 TO 599]` 过滤 + `request.keyword` terms agg。
+  3. 故障期间 upstream 响应时间：`upstream_response_time` 字段（如果 Nginx log_format 包含的话）的 p50 / p95 / p99。
+  4. 关联应用日志：用 `request_id` 跨索引 join（Nginx access log + 应用 log），需要 `transform` 或者 logs-pipeline。
+
+  ## 常见误判 & 注意事项
+  - 如果是国内客户的环境，注意 CDN（阿里云 / 腾讯云 / 七牛）回源时 5xx 可能是 CDN 自己产生的，不是 Nginx 真的挂了。看 `X-Cache-Status` / `X-Forwarded-For` 头。
+  - 健康检查请求（kube-probe / aliyun-slb-healthcheck）有时被错误统计进 5xx，过滤 `user_agent` 或健康检查 URL。
+  - 如果 5xx 是周期性出现（每小时整点），怀疑 cron job、log rotate、证书续期之类的定时任务。
+
+  ## 升级路径
+  - 5 分钟内未恢复 → 通知 service owner（看 metadata.owner 字段）。
+  - 影响 P0 业务 → 拉 war room，触发 incident response 流程。
+  - 怀疑安全事件（DDoS / 应用层攻击）→ 转 SOC 团队走 alert investigation 流程，关联 IP 信誉库 + WAF 日志。

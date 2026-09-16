@@ -1,0 +1,49 @@
+# Multi-provider LLM routing — copy to `llm_providers.yml` and edit.
+#
+# If this file is absent, the gateway falls back to the legacy single-provider env
+# vars (LLM_API_KEY / LLM_BASE_URL / LLM_MODEL). Either way is fine; YAML wins
+# when both are set.
+#
+# api_key_env points to an env var name that must be set in the gateway's
+# environment (e.g. via .env or docker-compose env). NEVER commit api keys to
+# this file directly.
+#
+# Currently only `failover` strategy is supported. Providers are tried in
+# declared order; the first one that doesn't raise wins. Failed providers are
+# tracked in the per-provider stats exposed at /api/llm/providers.
+
+providers:
+  # Primary: Volcengine Ark (火山方舟) — public-cloud LLM, fast, cheap.
+  - id: ark-primary
+    enabled: true
+    base_url: https://ark.cn-beijing.volces.com/api/v3
+    api_key_env: ARK_API_KEY                 # set ARK_API_KEY=... in .env
+    model: ep-xxxxxxxxxxxxxx-xxxxx           # your Ark inference endpoint id
+    timeout_s: 30
+    tags: [primary, cloud]
+
+  # Failover: OpenAI (or compat — Azure OpenAI, OpenRouter, etc.).
+  # Disabled by default. Enable + add OPENAI_API_KEY in .env to activate.
+  - id: openai-fallback
+    enabled: false
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+    model: gpt-4o-mini
+    timeout_s: 30
+    tags: [secondary, cloud]
+
+  # Air-gapped option: self-hosted vLLM / Ollama with OpenAI-compat API.
+  # Set up your local LLM server (vllm-openai, ollama with --openai, etc.)
+  # then enable this and disable cloud providers.
+  - id: vllm-airgapped
+    enabled: false
+    base_url: http://vllm.internal:8001/v1
+    api_key_env: VLLM_API_KEY                # vLLM accepts any string; set to "EMPTY" or a dummy
+    model: Qwen/Qwen2.5-72B-Instruct
+    timeout_s: 60
+    tags: [primary, airgapped]
+
+routing:
+  # failover: try in order, first success wins. Failed providers retry on next request.
+  # round-robin / tag-based: planned for v1.0.x
+  strategy: failover

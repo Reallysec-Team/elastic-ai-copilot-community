@@ -1,0 +1,53 @@
+# Caddy reverse proxy for the SSO-enabled stack (docker-compose.sso.yml).
+#
+# Differs from the Basic-Auth Caddyfile: login is handled by oauth2-proxy
+# (OIDC), not Caddy. Caddy here only:
+#   1. Terminates TLS.
+#   2. Forwards all traffic to oauth2-proxy, which enforces the OIDC session.
+#   3. Injects the gateway shared secret (passed through oauth2-proxy to the
+#      gateway) so the SPA never holds it.
+#
+# {$VARS} come from the caddy service env in docker-compose.sso.yml.
+
+{
+	admin off
+}
+
+{$CADDY_SITE_ADDRESS} {
+
+	# TLS — self-signed internal CA. For a public-trusted cert, replace with:
+	#   tls /etc/caddy/certs/cert.pem /etc/caddy/certs/key.pem
+	tls internal
+
+	# Health probes + Prometheus /metrics bypass SSO — uptime monitors and the
+	# internal Prometheus scrape reach the gateway directly (no login redirect).
+	@health path /healthz /readyz /metrics
+	# 安全响应头。三条都是"浏览器该怎么对待这个页面"，和登录方式无关，所以放在
+	# 站点级、两条 handle 都吃得到。
+	#   frame-ancestors  —— 这个界面没有任何被嵌进别人页面的理由，堵点击劫持。
+	#   nosniff          —— 别把上传的 CSV / JSON 猜成可执行类型。
+	#   Referrer-Policy  —— 跳去 Kibana 时不要把本站路径（带告警 id）带过去。
+	# 没加 HSTS 是故意的：这产品有相当一部分部署跑在纯 HTTP 的内网上，
+	# 一旦下发 HSTS，那些站点在浏览器里会被钉死成 https 打不开。要上先确认
+	# 全站有证书，再把下面这行的注释去掉。
+	header {
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		-Server
+		# Strict-Transport-Security "max-age=31536000"
+	}
+
+	handle @health {
+		reverse_proxy gateway:8000
+	}
+
+	# Everything else (incl. /oauth2/* and the SPA) → oauth2-proxy, which runs
+	# the OIDC flow and proxies authenticated requests to the gateway. Caddy
+	# injects the shared secret; oauth2-proxy passes it through to the gateway.
+	handle {
+		reverse_proxy oauth2-proxy:4180 {
+			header_up X-RST-Gateway-Token {$RST_GATEWAY_SHARED_SECRET}
+		}
+	}
+}

@@ -1,0 +1,779 @@
+@import "tailwindcss";
+/* Enter/exit keyframes (`animate-in`, `data-[state=closed]:animate-out`, …) used
+   by the imported Base UI primitives — dropdown-menu, popover, select, tooltip,
+   dialog. Not a token layer: purely the animation utilities those components
+   already reference. Without it their open/close is an instant pop. */
+@import "tw-animate-css";
+@import "@fontsource-variable/inter/index.css";
+@import "@fontsource-variable/geist-mono/index.css";
+
+/* Make Tailwind's `dark:` variant key off a `.dark` class on <html>
+   (not the OS prefers-color-scheme) — used for the handful of translucent
+   scrims/chips that the token migration can't express. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* 注册表下发的原语（separator / tabs / scroll-area / button-group）用
+   `data-horizontal:` / `data-vertical:` 写方向规则，而 Base UI 只写
+   `data-orientation="…"`——两边对不上，规则全部失效（0b38f5b 曾在四个文件里
+   补过属性，下一次 `--overwrite` 又被冲掉：分隔线从 1px 变成 10px 的灰条就是这么
+   来的）。把这两个变体在这里改成两种写法都认，原语文件再被覆盖也不怕。 */
+@custom-variant data-horizontal (&:where([data-horizontal], [data-orientation="horizontal"]));
+@custom-variant data-vertical (&:where([data-vertical], [data-orientation="vertical"]));
+
+/*
+ * Design tokens, exposed as CSS vars so every component pulls from one source
+ * of truth.
+ *
+ * The palette is ReUI's `atlas-admin` — the same achromatic oklch
+ * ramp, the same 0.625rem radius, Inter. It used to be Geist/Vercel with the
+ * shadcn token names aliased on top, which is why the app read as two designs
+ * bolted together: imported blocks drew real borders in shadcn greys while the
+ * app's own components drew shadow hairlines in Geist greys. One palette now.
+ *
+ * `--t-*` below are kept as names, not as a second palette: 1120 usages across
+ * 42 files reference them directly, and repointing the values is what made the
+ * whole app change appearance without touching those files. New code should
+ * prefer the Tailwind token classes (`bg-card`, `text-muted-foreground`).
+ */
+@theme {
+  --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  /* roster 用它给标题留一个换字体的钩子；三个原语（dialog / empty / sheet）
+     的标题写了 `font-heading`，缺这一行它们会落回继承的字体。 */
+  --font-heading: var(--font-sans);
+  --font-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, SFMono-Regular, 'Roboto Mono', Menlo, Monaco, monospace;
+
+  /*
+   * 字号阶梯。名字就是像素值 —— `text-12` = 12px，不跟 Tailwind 的 t 恤码
+   * （text-xs / text-sm）混。
+   *
+   * 为什么另起一套而不是直接用 `text-xs`：Tailwind 的每一档**连行高一起设**
+   * （text-xs 是 0.75rem/1rem），而全站原来写的是 `text-[12px]`，只设字号、
+   * 行高继承。换成 text-xs 不是零变化，是一次全站行高改动。这一套只设
+   * font-size，所以 365 处任意字号换过来是所见即所得。
+   *
+   * 要的是「写法统一」，不是「档位变少」：档位就是现在实际用着的那几个。
+   */
+  --text-10: 0.625rem;
+  --text-11: 0.6875rem;
+  --text-12: 0.75rem;
+  --text-13: 0.8125rem;
+  --text-14: 0.875rem;
+  --text-15: 0.9375rem;
+  --text-16: 1rem;
+  --text-18: 1.125rem;
+
+  /* Achromatic scale */
+  --color-bg: #ffffff;
+  /* 文字灰阶只有一套。这五个名字存在的意义是让 Tailwind 生成 `text-fg-muted`
+     这样的类名，值一律转发给下面 `:root` / `.dark` 里的 `--t-fg-*` —— 那才是
+     真正的灰阶定义，而且它自己会随明暗翻转。所以这里不需要、也不许有 `.dark`
+     覆盖：写死一个十六进制就等于在 `--t-fg-*` 之外再开一套灰阶，
+     而两套接近但不相等的灰阶正是之前全站直引 `text-[var(--t-fg-muted)]`、
+     没人敢换成类名的原因。 */
+  --color-fg: var(--t-fg);
+  --color-fg-strong: var(--t-fg-strong);
+  --color-fg-muted: var(--t-fg-muted);
+  --color-fg-subtle: var(--t-fg-subtle);
+  --color-fg-faint: var(--t-fg-faint);
+  --color-fg-disabled: var(--t-fg-disabled);
+  --color-line: #ebebeb;        /* gray-100, light dividers */
+  --color-surface-tint: #fafafa;/* gray-50, inner-glow ring */
+
+  /* Workflow accents — used sparingly, only in their semantic context */
+  --color-ship: #ff5b4f;        /* triage urgency */
+  --color-preview: #de1d8d;     /* detection rule = pre-prod preview */
+  --color-develop: #0a72ef;     /* investigation = dev/debug */
+
+  /* Console / code syntax */
+  --color-code-blue: #0070f3;
+  --color-code-purple: #7928ca;
+  --color-code-pink: #eb367f;
+
+  /* Interactive */
+  --color-link: #0072f5;
+  --color-focus: hsla(212, 100%, 48%, 1);
+  --color-ring-translucent: rgba(147, 197, 253, 0.5);
+
+  /* Pill badge */
+  --color-badge-bg: #ebf5ff;
+  --color-badge-fg: #0068d6;
+
+  /* Severity tints (light bg + dark text, pill-style) */
+  --color-sev-info-bg: #ebf5ff;
+  --color-sev-info-fg: #0068d6;
+  --color-sev-low-bg: #f3f4f6;
+  --color-sev-low-fg: #374151;
+  --color-sev-medium-bg: #fef3c7;
+  --color-sev-medium-fg: #92400e;
+  --color-sev-high-bg: #fee2e2;
+  --color-sev-high-fg: #991b1b;
+  --color-sev-critical-bg: #171717;
+  --color-sev-critical-fg: #ffffff;
+}
+
+/*
+ * Theme tokens (Round 14 — dark mode).
+ *
+ * Every hardcoded neutral / status hex in the component tree was migrated
+ * to one of these `--t-*` vars. `:root` holds light values; `.dark` (set
+ * on <html>) swaps them. Workflow accents (ship/preview/develop) and the
+ * brand blue stay fixed across modes — only the achromatic + status
+ * surfaces flip.
+ *
+ *   --t-fg        primary text / dark-button surface (#171717 ↔ light)
+ *   --t-on-fg     text that sits ON --t-fg surfaces (the inverse)
+ *   --t-card      elevated surface (was `bg-white`)
+ *   --t-s1/2/3    surface tints (was #fafafa / #f4f4f5 / #f5f5f5)
+ *   --t-line      hairline divider
+ */
+:root {
+  /* shadcn-admin's achromatic ramp. `--t-fg` / `--t-bg` / `--t-card` /
+     `--t-line` are its foreground / background / card / border verbatim; the
+     four text steps between fg and muted-foreground are interpolated on the
+     same ramp, because the donor only declares the two ends and this app has
+     names for the middle. */
+  --t-fg: oklch(0.145 0 0);
+  --t-fg-strong: oklch(0.30 0 0);
+  --t-fg-muted: oklch(0.44 0 0);
+  --t-fg-subtle: oklch(0.556 0 0);
+  --t-fg-faint: oklch(0.65 0 0);
+  --t-fg-disabled: oklch(0.80 0 0);
+  --t-on-fg: oklch(0.985 0 0);
+  --t-bg: oklch(1 0 0);
+  --t-card: oklch(1 0 0);
+  /* The donor uses one grey for muted / accent / secondary. The three tints
+     were a Geist-ism; keeping them apart is what made hover states drift a
+     shade away from every imported block. */
+  --t-s1: oklch(0.97 0 0);
+  --t-s2: oklch(0.97 0 0);
+  --t-s3: oklch(0.97 0 0);
+  --t-line: oklch(0.922 0 0);
+
+  /* Status surfaces */
+  --t-err-bg: #fff5f5;
+  --t-err-fg: #991b1b;
+  --t-ok-bg: #f0fdf4;
+  --t-ok-fg: #15803d;
+  --t-ok-dot: #22c55e;
+  --t-info-bg: #ebf5ff;
+  --t-info-fg: #0068d6;
+  --t-warn-bg: #fef3c7;
+  --t-warn-fg: #92400e;
+  --t-preview-bg: #fdf2f8;
+  --t-preview-fg: #9d174d;
+
+  /* Shadow stacks — Vercel's signature multi-layer system. */
+  --shadow-ring: 0 0 0 1px var(--t-line);
+  --shadow-ring-light: 0 0 0 1px var(--t-line);
+  --shadow-card-subtle:
+    0 0 0 1px rgba(0, 0, 0, 0.08),
+    0 2px 2px rgba(0, 0, 0, 0.04);
+  --shadow-card-full:
+    0 0 0 1px rgba(0, 0, 0, 0.08),
+    0 2px 2px rgba(0, 0, 0, 0.04),
+    0 8px 8px -8px rgba(0, 0, 0, 0.04),
+    inset 0 0 0 1px #fafafa;
+  --shadow-pop:
+    0 0 0 1px rgba(0, 0, 0, 0.08),
+    0 8px 24px -12px rgba(0, 0, 0, 0.18),
+    inset 0 0 0 1px var(--t-s1);
+  --shadow-focus: 0 0 0 2px var(--color-focus);
+  --destructive-foreground: var(--color-red-800);
+  --success: var(--color-emerald-500);
+  --success-foreground: var(--color-emerald-900);
+  --info: var(--color-violet-500);
+  --info-foreground: var(--color-violet-900);
+  --warning: var(--color-yellow-500);
+  --warning-foreground: var(--color-yellow-900);
+  --invert: var(--color-zinc-900);
+  --invert-foreground: var(--color-zinc-50);
+}
+
+.dark {
+  --t-fg: oklch(0.985 0 0);
+  --t-fg-strong: oklch(0.87 0 0);
+  --t-fg-muted: oklch(0.79 0 0);
+  --t-fg-subtle: oklch(0.708 0 0);
+  --t-fg-faint: oklch(0.60 0 0);
+  --t-fg-disabled: oklch(0.45 0 0);
+  --t-on-fg: oklch(0.205 0 0);
+  --t-bg: oklch(0.145 0 0);
+  --t-card: oklch(0.205 0 0);
+  --t-s1: oklch(0.269 0 0);
+  --t-s2: oklch(0.269 0 0);
+  --t-s3: oklch(0.269 0 0);
+  /* Translucent, like the donor's — a solid grey hairline on a dark ground
+     reads as a seam; this one takes the colour of whatever it sits on. */
+  --t-line: oklch(1 0 0 / 10%);
+
+  --t-err-bg: #2a1618;
+  --t-err-fg: #f98a8a;
+  --t-ok-bg: #112a1b;
+  --t-ok-fg: #5fd08a;
+  --t-ok-dot: #22c55e;
+  --t-info-bg: #13243c;
+  --t-info-fg: #6fb2ff;
+  --t-warn-bg: #2e2410;
+  --t-warn-fg: #e0a857;
+  --t-preview-bg: #2a1424;
+  --t-preview-fg: #f08fbf;
+
+  /* On a dark canvas a black ring is invisible — flip to light rings. */
+  --shadow-ring: 0 0 0 1px rgba(255, 255, 255, 0.12);
+  --shadow-ring-light: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-card-subtle:
+    0 0 0 1px rgba(255, 255, 255, 0.10),
+    0 2px 2px rgba(0, 0, 0, 0.30);
+  --shadow-card-full:
+    0 0 0 1px rgba(255, 255, 255, 0.10),
+    0 2px 2px rgba(0, 0, 0, 0.30),
+    0 8px 8px -8px rgba(0, 0, 0, 0.40),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  --shadow-pop:
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 8px 28px -8px rgba(0, 0, 0, 0.66),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --shadow-focus: 0 0 0 2px var(--color-focus);
+  color-scheme: dark;
+
+  /* Override the @theme color tokens that the .sev-* / .pill-* / .label-mono
+     utility classes reference. Workflow accents + code colors stay fixed. */
+  --color-bg: #0a0a0b;
+  /* `--color-fg*` 不在这里覆盖：它们转发给 `--t-fg-*`，上面几行已经翻过了。 */
+  --color-line: #2a2a2e;
+  --color-surface-tint: #1f1f23;
+  --color-badge-bg: #13243c;
+  --color-badge-fg: #6fb2ff;
+  --color-sev-info-bg: #13243c;
+  --color-sev-info-fg: #6fb2ff;
+  --color-sev-low-bg: #232327;
+  --color-sev-low-fg: #c2c2c4;
+  --color-sev-medium-bg: #2e2410;
+  --color-sev-medium-fg: #e0a857;
+  --color-sev-high-bg: #2a1618;
+  --color-sev-high-fg: #f98a8a;
+  --color-sev-critical-bg: #ededed;
+  --color-sev-critical-fg: #0a0a0a;
+  --destructive-foreground: var(--color-red-600);
+  --success: var(--color-emerald-500);
+  --success-foreground: var(--color-emerald-600);
+  --info: var(--color-violet-500);
+  --info-foreground: var(--color-violet-600);
+  --warning: var(--color-yellow-500);
+  --warning-foreground: var(--color-yellow-600);
+  --invert: var(--color-zinc-700);
+  --invert-foreground: var(--color-zinc-50);
+}
+
+/*
+ * ─── shadcn token alias layer ───────────────────────────────────────────────
+ *
+ * Everything above is this product's own design language and does not change.
+ * This block exists so commercial shadcn/ReUI blocks can be dropped in WITHOUT
+ * editing their Tailwind classes: they are written against the shadcn token
+ * names (`bg-background`, `text-muted-foreground`, `border-border`, `bg-sidebar`),
+ * and every one of those names is forwarded here to a `--t-*` value that is
+ * already defined above. Change a colour by changing the `--t-*` it points at,
+ * never by touching a block's classes.
+ *
+ * The name list is not from memory — it is the exact surface declared in
+ * D:\ui\ReUI\reui-templates-main\atlas-admin\app\globals.css, which is the
+ * donor for the primitive layer.
+ *
+ * Two deliberate departures from the donor, both documented at their token:
+ * the radius scale and the border/ring strategy.
+ */
+:root {
+  /* Surfaces. `muted` is the filled inner surface (table header, disabled
+     field); `accent` is the lighter hover wash — the donor makes them the same
+     grey, we keep our two distinct tints. */
+  --background: var(--t-bg);
+  --foreground: var(--t-fg);
+  --card: var(--t-card);
+  --card-foreground: var(--t-fg);
+  --popover: var(--t-card);
+  --popover-foreground: var(--t-fg);
+  --secondary: var(--t-s2);
+  --secondary-foreground: var(--t-fg);
+  --muted: var(--t-s2);
+  --muted-foreground: var(--t-fg-subtle);
+  --accent: var(--t-s1);
+  --accent-foreground: var(--t-fg);
+
+  /* `primary` in this product is NOT the brand blue — it is the near-black
+     solid button (`--t-fg` surface, `--t-on-fg` label) used for every commit
+     action in the app today. Mapping it to `--color-develop` would repaint
+     every primary button in every imported block blue and break the rule that
+     the blue accent only appears in investigation context. */
+  --primary: var(--t-fg);
+  --primary-foreground: var(--t-on-fg);
+
+  /* Destructive = the ship accent, which already means urgency/danger here. */
+  --destructive: var(--color-ship);
+  --destructive-foreground: var(--t-err-fg);
+
+  /* Extra semantic trio the donor declares. This product expresses status as a
+     tinted pill (bg + fg pair), not a saturated solid, so the "solid" slot gets
+     the pill's foreground — the one value that is legible on both grounds. */
+  --success: var(--t-ok-dot);
+  --success-foreground: var(--t-ok-fg);
+  --info: var(--color-develop);
+  --info-foreground: var(--t-info-fg);
+  --warning: var(--t-warn-fg);
+  --warning-foreground: var(--t-warn-fg);
+  --invert: var(--t-fg);
+  --invert-foreground: var(--t-on-fg);
+
+  /* Borders. This product forbids CSS borders and draws hairlines with
+     box-shadow (`--shadow-ring`, `.ring-border`) so they never affect layout.
+     Imported blocks use `border` / `border-border` heavily, and rewriting that
+     in hundreds of files is not worth it — so both systems coexist and are
+     made to look identical: `--border` is the same colour as the shadow ring,
+     at the same 1px. Our own components keep using `.ring-border`; imported
+     ones keep using `border-border`.
+
+     donor 的 `@layer base { * { border-color: var(--border) } }` 这条**必须抄**
+     （见下面的 @layer base）。Tailwind v4 的 preflight 把 border-color 的初始值
+     留成 `currentColor`，所以任何写 `border` / `border-b` / `divide-y` 而不带颜色
+     的组件都会画出一条跟正文同色的近黑线。registry 的表格、Item、Separator 全是
+     这么写的 —— 少这一条，导入的组件就是一屏加粗黑框。 */
+  --border: var(--t-line);
+  --input: var(--t-line);
+  --ring: var(--color-focus);
+
+  /* Radius. The donor's 0.625rem, and the whole `--radius-*` scale derived
+     from it (see `@theme inline`). This used to be 0.5rem with the scale left
+     at Tailwind's defaults, to avoid shifting 294 existing `rounded-*` usages
+     by 1-3px. That was the right call while the app had its own design; it is
+     the wrong one now that the app is meant to BE the donor — a shared corner
+     radius is most of what makes two surfaces look like one system. */
+  --radius: 0.625rem;
+
+  /* Categorical chart colours, declared per theme rather than aliased: a hue
+     that reads on white is not the same hue that reads on #0a0a0b. Five
+     distinguishable hues, and `--color-ship` is deliberately excluded — red
+     means urgency everywhere else in this product, and a red series in a
+     capacity chart would read as an alert. */
+  --chart-1: #0a72ef;
+  --chart-2: #7928ca;
+  --chart-3: #16a34a;
+  --chart-4: #de1d8d;
+  --chart-5: #d97706;
+
+  /* Sidebar (consumed by the app-shell blocks in the next phase). Its ground
+     is the s1 tint so the shell reads as recessed against the white content
+     column, matching how the mobile sheet is already drawn. */
+  --sidebar: var(--t-s1);
+  --sidebar-foreground: var(--t-fg);
+  --sidebar-primary: var(--t-fg);
+  --sidebar-primary-foreground: var(--t-on-fg);
+  --sidebar-accent: var(--t-s2);
+  --sidebar-accent-foreground: var(--t-fg);
+  --sidebar-border: var(--t-line);
+  --sidebar-ring: var(--color-focus);
+
+  /*
+   * Page-width scale. Pages currently pick their own container — 720 / 760 /
+   * 960 / 1080 / 1200 / 480px across the app — which is why moving between
+   * them reads as inconsistent. Three roles, and the shell measures its header
+   * chrome from the same token as the content so their edges line up.
+   *
+   * No `--space-*` scale is added: Tailwind's spacing scale already exists and
+   * a parallel set of tokens that no utility consumes would be dead weight.
+   * The gap inconsistency is a discipline problem, fixed when each page is
+   * migrated, not a missing token.
+   */
+  --w-board: 80rem;   /* 1280px — dashboards, tables, anything multi-column */
+  --w-form: 45rem;    /* 720px — settings, forms, single-column reading */
+}
+
+.dark {
+  --background: var(--t-bg);
+  --foreground: var(--t-fg);
+  --card: var(--t-card);
+  --card-foreground: var(--t-fg);
+  --popover: var(--t-card);
+  --popover-foreground: var(--t-fg);
+  --secondary: var(--t-s2);
+  --secondary-foreground: var(--t-fg);
+  --muted: var(--t-s2);
+  --muted-foreground: var(--t-fg-subtle);
+  --accent: var(--t-s2);          /* s1 == card on dark, so hover needs s2 */
+  --accent-foreground: var(--t-fg);
+  --primary: var(--t-fg);
+  --primary-foreground: var(--t-on-fg);
+  --destructive: var(--color-ship);
+  --destructive-foreground: var(--t-err-fg);
+  --success: var(--t-ok-dot);
+  --success-foreground: var(--t-ok-fg);
+  --info: var(--color-develop);
+  --info-foreground: var(--t-info-fg);
+  --warning: var(--t-warn-fg);
+  --warning-foreground: var(--t-warn-fg);
+  --invert: var(--t-fg);
+  --invert-foreground: var(--t-on-fg);
+  --border: var(--t-line);
+  --input: var(--t-line);
+  --ring: var(--color-focus);
+  --radius: 0.625rem;
+
+  /* Lifted chart hues — the light-mode values sit at 3:1 or worse on #0a0a0b. */
+  --chart-1: #4d9dff;
+  --chart-2: #a970e8;
+  --chart-3: #34d399;
+  --chart-4: #f472b6;
+  --chart-5: #f0b429;
+
+  /* On a dark canvas the recessed-sidebar relationship inverts: s1 IS the card
+     colour, so the shell takes the page ground and the content sits on card. */
+  --sidebar: var(--t-bg);
+  --sidebar-foreground: var(--t-fg);
+  --sidebar-primary: var(--t-fg);
+  --sidebar-primary-foreground: var(--t-on-fg);
+  --sidebar-accent: var(--t-s2);
+  --sidebar-accent-foreground: var(--t-fg);
+  --sidebar-border: var(--t-line);
+  --sidebar-ring: var(--color-focus);
+
+  --w-board: 80rem;
+  --w-form: 45rem;
+}
+
+/*
+ * `inline` matters: it makes each utility emit `var(--muted)` rather than the
+ * value resolved at build time, which is what lets the `.dark` block above
+ * re-point them at runtime. Without `inline` every imported block would be
+ * frozen to the light palette.
+ */
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  /* tempo 的 styles.css 把圆角一路排到 4xl（见 src/tempo/README-迁移.md）。它的
+     组件用到这三档，本仓的 @theme 只排到 xl，缺了就落回 Tailwind 默认值、圆角
+     对不上。比例照抄 tempo：xl 1.4 / 2xl 1.8 / 3xl 2.2 / 4xl 2.6。 */
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  /* 四个状态色的浅底。donor 没有这一档（它的状态色是实心的），但本产品的状态
+     一律画成「浅底 + 深字」的 pill，浅底那一半原来只能写 `bg-[var(--t-err-bg)]`。
+     配对关系跟上面的 `-foreground` 一致：destructive↔err、success↔ok。 */
+  --color-destructive-subtle: var(--t-err-bg);
+  --color-success-subtle: var(--t-ok-bg);
+  --color-info-subtle: var(--t-info-bg);
+  --color-warning-subtle: var(--t-warn-bg);
+  --color-invert: var(--invert);
+  --color-invert-foreground: var(--invert-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --container-board: var(--w-board);
+  --container-form: var(--w-form);
+}
+
+@layer base {
+  /* donor 的全局边框色兜底。缺了它，registry 里所有不带颜色的 `border-*` 会
+     落到 Tailwind v4 preflight 的 currentColor 上，画成近黑色的粗线。 */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--border);
+    /* roster 的 base 是 `* { @apply border-border outline-ring/50 }`，焦点圈的
+       颜色跟边框色一起兜底，少了它 registry 组件的 outline 会落到浏览器默认。 */
+    outline-color: color-mix(in oklab, var(--ring) 50%, transparent);
+  }
+
+  html {
+    background: var(--t-bg);
+    color: var(--t-fg);
+    font-family: var(--font-sans);
+    font-feature-settings: "liga";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.43;
+    background: var(--t-bg);
+    color: var(--t-fg);
+    transition: background-color 200ms ease, color 200ms ease;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-sans);
+    color: var(--t-fg);
+    font-feature-settings: "liga";
+  }
+
+  /* Display / Hero — 48px, weight 600, -2.4px tracking */
+  h1 {
+    font-size: 48px;
+    line-height: 1.05;
+    letter-spacing: -2.4px;
+    font-weight: 600;
+    margin: 0;
+  }
+  /* Section heading — 32px, weight 600, -1.28px */
+  h2 {
+    font-size: 32px;
+    line-height: 1.20;
+    letter-spacing: -1.28px;
+    font-weight: 600;
+    margin: 0;
+  }
+  /* Card title — 24px, weight 600, -0.96px */
+  h3 {
+    font-size: 24px;
+    line-height: 1.33;
+    letter-spacing: -0.96px;
+    font-weight: 600;
+    margin: 0;
+  }
+  /* Sub-card — 18px */
+  h4 {
+    font-size: 18px;
+    line-height: 1.4;
+    letter-spacing: -0.36px;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  code, pre, kbd {
+    font-family: var(--font-mono);
+    font-feature-settings: "liga", "tnum";
+  }
+
+  /* Page title. Was a 64px marketing hero on ten screens — that reads as a
+     landing page, and with a persistent left rail it also pushed the first
+     row of actual content below the fold on a 900px-tall laptop. Demoted to a
+     page header; the class name stays so the ten call sites (one of which is
+     in someone else's uncommitted work) need no edit. */
+  .hero-display {
+    font-family: var(--font-sans);
+    font-size: 32px;
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -1.2px;
+    color: var(--t-fg);
+  }
+  .hero-display-lg {
+    font-size: 40px;
+    letter-spacing: -1.6px;
+  }
+  @media (max-width: 900px) {
+    .hero-display { font-size: 26px; letter-spacing: -0.8px; }
+    .hero-display-lg { font-size: 30px; letter-spacing: -1px; }
+  }
+
+  ::selection {
+    background: var(--t-s3);
+    color: var(--t-fg);
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+}
+
+/* Utility recipes — consumed by Tailwind via arbitrary values + custom classes */
+@layer utilities {
+  /* Replace `border` everywhere with this. */
+  .ring-border {
+    box-shadow: var(--shadow-ring);
+  }
+  .ring-border-light {
+    box-shadow: var(--shadow-ring-light);
+  }
+
+  .card-shadow {
+    box-shadow: var(--shadow-card-subtle);
+  }
+  .card-shadow-full {
+    box-shadow: var(--shadow-card-full);
+  }
+
+  /* Technical labels — section eyebrows and form-field captions.
+     These used to be uppercase Geist Mono at 12px, which was the loudest
+     remaining trace of the old design: every caption in the product was set in
+     monospace. ReUI labels fields in the body face, `text-xs` and muted.
+     Restyled here rather than at the call sites because 40 of them write the
+     class directly, and the ones that go through `<LabelMono>` land on the
+     same values. */
+  .label-mono {
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0;
+    color: var(--muted-foreground);
+  }
+
+  /* Badge, matching ReUI's `ui/badge.tsx` geometry (size `default`, radius
+     `full`): h-5, 12px text, 1px border, tinted surface. `<Pill>` renders the
+     real Badge component; these classes exist because 92 call sites write
+     `sev-*` straight onto a span, and repainting the definition is what let all
+     of them change at once. Both routes land on the same pixels. */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    height: 1.25rem;
+    padding: 0.125rem 0.3125rem;
+    border: 1px solid transparent;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .pill-blue {
+    border-color: color-mix(in oklab, var(--info) 15%, transparent);
+    background: color-mix(in oklab, var(--info) 10%, transparent);
+    color: var(--info-foreground);
+  }
+  .pill-gray { background: var(--secondary); color: var(--secondary-foreground); }
+
+  /* Severity, climbing info → low → medium → high → critical. `critical` is a
+     solid near-black rather than one more red: it has to read as a different
+     kind of thing, not as a louder high. */
+  .sev-info, .sev-low, .sev-medium, .sev-high, .sev-critical {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    height: 1.25rem;
+    padding: 0.125rem 0.3125rem;
+    border: 1px solid transparent;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .sev-info {
+    border-color: color-mix(in oklab, var(--info) 15%, transparent);
+    background: color-mix(in oklab, var(--info) 10%, transparent);
+    color: var(--info-foreground);
+  }
+  .sev-low { background: var(--secondary); color: var(--secondary-foreground); }
+  .sev-medium {
+    border-color: color-mix(in oklab, var(--warning) 15%, transparent);
+    background: color-mix(in oklab, var(--warning) 10%, transparent);
+    color: var(--warning-foreground);
+  }
+  .sev-high {
+    border-color: color-mix(in oklab, var(--destructive) 15%, transparent);
+    background: color-mix(in oklab, var(--destructive) 10%, transparent);
+    color: var(--destructive-foreground);
+  }
+  .sev-critical { background: var(--invert); color: var(--invert-foreground); }
+
+  /* Workflow accent text — only valid in workflow context.
+     Develop = investigation-class actions, Preview = pre-prod artifacts,
+     Ship = urgent / triage. */
+  .text-develop { color: var(--color-develop); }
+  .text-preview { color: var(--color-preview); }
+  .text-ship    { color: var(--color-ship); }
+  .bg-develop   { background: var(--color-develop); }
+  .bg-preview   { background: var(--color-preview); }
+  .bg-ship      { background: var(--color-ship); }
+
+
+  /* Hero entrance — opacity + slight translate. Used by the Query page
+     hero block and any other hero-titled page. */
+  .reveal {
+    animation: reveal 380ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .reveal-d1 { animation-delay: 60ms; }
+  .reveal-d2 { animation-delay: 140ms; }
+  .reveal-d3 { animation-delay: 220ms; }
+  .reveal-d4 { animation-delay: 300ms; }
+  @keyframes reveal {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Suggestion-pill stagger */
+  .pill-stagger > * {
+    animation: reveal 320ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .pill-stagger > *:nth-child(1) { animation-delay: 320ms; }
+  .pill-stagger > *:nth-child(2) { animation-delay: 380ms; }
+  .pill-stagger > *:nth-child(3) { animation-delay: 440ms; }
+  .pill-stagger > *:nth-child(4) { animation-delay: 500ms; }
+  .pill-stagger > *:nth-child(5) { animation-delay: 560ms; }
+}
+
+@keyframes dialog-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes dialog-content-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes dropdown-content-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .pill-stagger > * {
+    animation: none !important;
+  }
+}
+
+/*
+ * 卡片头 / 脚里的说明降到 text-xs —— 抄自 roster 的 global.css。
+ *
+ * `FrameDescription` 出厂是 text-sm，和它上面的 `FrameTitle` 一样大，于是副标题
+ * 读起来像正文的第二行而不是标题的补充。不放进 @layer，是为了不用 !important
+ * 就压过 Tailwind 分层里的 text-sm，也让 `components/reui/frame.tsx` 保持和
+ * registry 逐字节一致，装新区块时不用回补。
+ */
+:is([data-slot="frame-panel-header"], [data-slot="frame-panel-footer"])
+  [data-slot="frame-panel-description"] {
+  font-size: var(--text-xs);
+  line-height: var(--tw-leading, var(--text-xs--line-height));
+}

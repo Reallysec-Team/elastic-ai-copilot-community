@@ -1,0 +1,2861 @@
+{
+  "rules": [
+    {
+      "rule_id": "NB-KRN-001",
+      "title": "禁用 IP 转发（非路由主机）",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1 访问控制",
+        "CIS-Linux-3.3.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv4.ip_forward';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "临时禁用：`sysctl -w net.ipv4.ip_forward=0`；持久化写入 /etc/sysctl.d/。"
+    },
+    {
+      "rule_id": "NB-KRN-002",
+      "title": "禁止发送 ICMP 重定向（all）",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-3.3.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv4.conf.all.send_redirects';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-003",
+      "title": "禁止发送 ICMP 重定向（default）",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-3.3.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv4.conf.default.send_redirects';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-004",
+      "title": "禁止接受源路由包（all）",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-3.3.3"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv4.conf.all.accept_source_route';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-005",
+      "title": "禁止接受源路由包（default）",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-3.3.3"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv4.conf.default.accept_source_route';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-006",
+      "title": "禁止接受 ICMP 重定向（all）",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-3.3.4"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv4.conf.all.accept_redirects';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-007",
+      "title": "禁止接受 ICMP 重定向（default）",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-3.3.4"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv4.conf.default.accept_redirects';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-008",
+      "title": "禁止接受安全 ICMP 重定向（all）",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-3.3.5"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv4.conf.all.secure_redirects';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-009",
+      "title": "记录异常来源包（martians）",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.3 安全审计",
+        "CIS-Linux-3.3.6"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv4.conf.all.log_martians';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-010",
+      "title": "忽略广播 ICMP 请求",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-3.3.7"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv4.icmp_echo_ignore_broadcasts';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-011",
+      "title": "忽略伪造的 ICMP 错误响应",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-3.3.8"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv4.icmp_ignore_bogus_error_responses';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-012",
+      "title": "启用反向路径过滤（all）",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-3.3.9"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv4.conf.all.rp_filter';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-013",
+      "title": "启用 TCP SYN Cookies（抗 SYN flood）",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-3.3.10"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv4.tcp_syncookies';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-014",
+      "title": "禁止接受 IPv6 ICMP 重定向",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-3.3.11"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv6.conf.all.accept_redirects';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-015",
+      "title": "禁止接受 IPv6 路由通告",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-3.3.12"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv6.conf.all.accept_ra';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-016",
+      "title": "启用完整地址空间随机化（ASLR）",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10 入侵防范",
+        "CIS-Linux-1.5.3"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='kernel.randomize_va_space';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "2",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-017",
+      "title": "禁止 setuid 程序生成 core dump",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-1.5.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='fs.suid_dumpable';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-018",
+      "title": "限制非特权用户读取内核环缓冲",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.3",
+        "CIS-Linux-1.5.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='kernel.dmesg_restrict';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-MOD-001",
+      "title": "禁用 cramfs 文件系统模块",
+      "category": "内核模块最小化",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-1.1.1.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT name FROM kernel_modules WHERE name='cramfs';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用未使用的内核模块 cramfs：在 /etc/modprobe.d/ 中加 `install cramfs /bin/true`，并 `rmmod cramfs`（如已加载）。"
+    },
+    {
+      "rule_id": "NB-MOD-002",
+      "title": "禁用 freevxfs 文件系统模块",
+      "category": "内核模块最小化",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-1.1.1.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT name FROM kernel_modules WHERE name='freevxfs';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用未使用的内核模块 freevxfs：在 /etc/modprobe.d/ 中加 `install freevxfs /bin/true`，并 `rmmod freevxfs`（如已加载）。"
+    },
+    {
+      "rule_id": "NB-MOD-003",
+      "title": "禁用 jffs2 文件系统模块",
+      "category": "内核模块最小化",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-1.1.1.3"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT name FROM kernel_modules WHERE name='jffs2';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用未使用的内核模块 jffs2：在 /etc/modprobe.d/ 中加 `install jffs2 /bin/true`，并 `rmmod jffs2`（如已加载）。"
+    },
+    {
+      "rule_id": "NB-MOD-004",
+      "title": "禁用 hfs 文件系统模块",
+      "category": "内核模块最小化",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-1.1.1.4"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT name FROM kernel_modules WHERE name='hfs';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用未使用的内核模块 hfs：在 /etc/modprobe.d/ 中加 `install hfs /bin/true`，并 `rmmod hfs`（如已加载）。"
+    },
+    {
+      "rule_id": "NB-MOD-005",
+      "title": "禁用 hfsplus 文件系统模块",
+      "category": "内核模块最小化",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-1.1.1.5"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT name FROM kernel_modules WHERE name='hfsplus';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用未使用的内核模块 hfsplus：在 /etc/modprobe.d/ 中加 `install hfsplus /bin/true`，并 `rmmod hfsplus`（如已加载）。"
+    },
+    {
+      "rule_id": "NB-MOD-006",
+      "title": "禁用 udf 文件系统模块",
+      "category": "内核模块最小化",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-1.1.1.6"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT name FROM kernel_modules WHERE name='udf';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用未使用的内核模块 udf：在 /etc/modprobe.d/ 中加 `install udf /bin/true`，并 `rmmod udf`（如已加载）。"
+    },
+    {
+      "rule_id": "NB-MOD-007",
+      "title": "禁用 USB 存储模块（防数据外带）",
+      "category": "内核模块最小化",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-1.1.10"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT name FROM kernel_modules WHERE name='usb-storage';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用未使用的内核模块 usb-storage：在 /etc/modprobe.d/ 中加 `install usb-storage /bin/true`，并 `rmmod usb-storage`（如已加载）。"
+    },
+    {
+      "rule_id": "NB-MOD-008",
+      "title": "禁用 DCCP 协议模块",
+      "category": "内核模块最小化",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-3.4.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT name FROM kernel_modules WHERE name='dccp';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用未使用的内核模块 dccp：在 /etc/modprobe.d/ 中加 `install dccp /bin/true`，并 `rmmod dccp`（如已加载）。"
+    },
+    {
+      "rule_id": "NB-MOD-009",
+      "title": "禁用 SCTP 协议模块",
+      "category": "内核模块最小化",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-3.4.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT name FROM kernel_modules WHERE name='sctp';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用未使用的内核模块 sctp：在 /etc/modprobe.d/ 中加 `install sctp /bin/true`，并 `rmmod sctp`（如已加载）。"
+    },
+    {
+      "rule_id": "NB-MOD-010",
+      "title": "禁用 RDS 协议模块",
+      "category": "内核模块最小化",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-3.4.3"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT name FROM kernel_modules WHERE name='rds';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用未使用的内核模块 rds：在 /etc/modprobe.d/ 中加 `install rds /bin/true`，并 `rmmod rds`（如已加载）。"
+    },
+    {
+      "rule_id": "NB-MOD-011",
+      "title": "禁用 TIPC 协议模块",
+      "category": "内核模块最小化",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-3.4.4"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT name FROM kernel_modules WHERE name='tipc';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用未使用的内核模块 tipc：在 /etc/modprobe.d/ 中加 `install tipc /bin/true`，并 `rmmod tipc`（如已加载）。"
+    },
+    {
+      "rule_id": "NB-ACC-001",
+      "title": "除 root 外不存在 UID=0 的账户",
+      "category": "账户与口令",
+      "platform": "linux",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1 身份鉴别",
+        "CIS-Linux-6.2.9"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT username FROM users WHERE uid=0 AND username!='root';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "非 root 的 UID=0 账户是越权风险；核实身份后删除或改 UID：`usermod -u <newuid> <user>`。"
+    },
+    {
+      "rule_id": "NB-ACC-002",
+      "title": "不存在重复的 UID",
+      "category": "账户与口令",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Linux-6.2.15"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT uid, count(*) AS c FROM users GROUP BY uid HAVING c > 1;"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "重复 UID 使权限归属混乱；为多余账户分配唯一 UID。"
+    },
+    {
+      "rule_id": "NB-ACC-003",
+      "title": "不存在重复的用户名",
+      "category": "账户与口令",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Linux-6.2.16"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT username, count(*) AS c FROM users GROUP BY username HAVING c > 1;"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "重复用户名会导致鉴别歧义；重命名冲突账户。"
+    },
+    {
+      "rule_id": "NB-ACC-004",
+      "title": "不存在空口令账户",
+      "category": "账户与口令",
+      "platform": "linux",
+      "severity": "critical",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Linux-6.2.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT username FROM shadow WHERE password_status='empty';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "error"
+      },
+      "remediation_template": "空口令账户可被直接登录；`passwd -l <user>` 锁定或设置强口令。"
+    },
+    {
+      "rule_id": "NB-ACC-005",
+      "title": "系统账户（UID<1000）均为不可登录 shell",
+      "category": "账户与口令",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Linux-6.2.8"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT username FROM users WHERE uid<1000 AND uid!=0 AND shell NOT IN ('/usr/sbin/nologin','/sbin/nologin','/bin/false');"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "系统账户不应可交互登录；`usermod -s /usr/sbin/nologin <user>`。"
+    },
+    {
+      "rule_id": "NB-ACC-006",
+      "title": "root 是唯一 GID=0 的属主账户",
+      "category": "账户与口令",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Linux-6.2.11"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT username FROM users WHERE gid=0 AND username!='root';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "核实非 root 的 GID=0 账户，调整其主组。"
+    },
+    {
+      "rule_id": "NB-FIL-001",
+      "title": "/etc/passwd 权限为 0644",
+      "category": "文件权限",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.4 数据保密性",
+        "CIS-Linux-6.1.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT mode FROM file WHERE path='/etc/passwd';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "mode",
+        "expected": "0644",
+        "on_missing": "fail"
+      },
+      "remediation_template": "`chmod 0644 /etc/passwd`。"
+    },
+    {
+      "rule_id": "NB-FIL-002",
+      "title": "/etc/shadow 权限不宽于 0640",
+      "category": "文件权限",
+      "platform": "linux",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.4",
+        "CIS-Linux-6.1.3"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT mode FROM file WHERE path='/etc/shadow';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "mode",
+        "expected": "0640",
+        "on_missing": "fail"
+      },
+      "remediation_template": "`chmod 0640 /etc/shadow`（部分发行版为 0000）。"
+    },
+    {
+      "rule_id": "NB-FIL-003",
+      "title": "/etc/group 权限为 0644",
+      "category": "文件权限",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.4",
+        "CIS-Linux-6.1.4"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT mode FROM file WHERE path='/etc/group';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "mode",
+        "expected": "0644",
+        "on_missing": "fail"
+      },
+      "remediation_template": "`chmod 0644 /etc/group`。"
+    },
+    {
+      "rule_id": "NB-FIL-004",
+      "title": "/etc/gshadow 权限不宽于 0640",
+      "category": "文件权限",
+      "platform": "linux",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.4",
+        "CIS-Linux-6.1.5"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT mode FROM file WHERE path='/etc/gshadow';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "mode",
+        "expected": "0640",
+        "on_missing": "fail"
+      },
+      "remediation_template": "`chmod 0640 /etc/gshadow`。"
+    },
+    {
+      "rule_id": "NB-FIL-005",
+      "title": "/etc/crontab 权限为 0600",
+      "category": "文件权限",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.4",
+        "CIS-Linux-5.1.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT mode FROM file WHERE path='/etc/crontab';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "mode",
+        "expected": "0600",
+        "on_missing": "fail"
+      },
+      "remediation_template": "`chmod 0600 /etc/crontab`。"
+    },
+    {
+      "rule_id": "NB-FIL-006",
+      "title": "/etc/ssh/sshd_config 权限为 0600",
+      "category": "文件权限",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.4",
+        "CIS-Linux-5.2.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT mode FROM file WHERE path='/etc/ssh/sshd_config';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "mode",
+        "expected": "0600",
+        "on_missing": "fail"
+      },
+      "remediation_template": "`chmod 0600 /etc/ssh/sshd_config`。"
+    },
+    {
+      "rule_id": "NB-MNT-001",
+      "title": "/tmp 挂载启用 nodev 选项",
+      "category": "挂载选项",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-1.1.2.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT path FROM mounts WHERE path='/tmp' AND flags NOT LIKE '%nodev%';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "在 /etc/fstab 中为 /tmp 增加 nodev 挂载选项后 `mount -o remount /tmp`。"
+    },
+    {
+      "rule_id": "NB-MNT-002",
+      "title": "/tmp 挂载启用 nosuid 选项",
+      "category": "挂载选项",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-1.1.2.3"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT path FROM mounts WHERE path='/tmp' AND flags NOT LIKE '%nosuid%';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "在 /etc/fstab 中为 /tmp 增加 nosuid 挂载选项后 `mount -o remount /tmp`。"
+    },
+    {
+      "rule_id": "NB-MNT-003",
+      "title": "/tmp 挂载启用 noexec 选项",
+      "category": "挂载选项",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-1.1.2.4"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT path FROM mounts WHERE path='/tmp' AND flags NOT LIKE '%noexec%';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "在 /etc/fstab 中为 /tmp 增加 noexec 挂载选项后 `mount -o remount /tmp`。"
+    },
+    {
+      "rule_id": "NB-MNT-004",
+      "title": "/dev/shm 挂载启用 nodev 选项",
+      "category": "挂载选项",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-1.1.8.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT path FROM mounts WHERE path='/dev/shm' AND flags NOT LIKE '%nodev%';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "在 /etc/fstab 中为 /dev/shm 增加 nodev 挂载选项后 `mount -o remount /dev/shm`。"
+    },
+    {
+      "rule_id": "NB-MNT-005",
+      "title": "/dev/shm 挂载启用 nosuid 选项",
+      "category": "挂载选项",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-1.1.8.3"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT path FROM mounts WHERE path='/dev/shm' AND flags NOT LIKE '%nosuid%';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "在 /etc/fstab 中为 /dev/shm 增加 nosuid 挂载选项后 `mount -o remount /dev/shm`。"
+    },
+    {
+      "rule_id": "NB-MNT-006",
+      "title": "/dev/shm 挂载启用 noexec 选项",
+      "category": "挂载选项",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-1.1.8.4"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT path FROM mounts WHERE path='/dev/shm' AND flags NOT LIKE '%noexec%';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "在 /etc/fstab 中为 /dev/shm 增加 noexec 挂载选项后 `mount -o remount /dev/shm`。"
+    },
+    {
+      "rule_id": "NB-MNT-007",
+      "title": "/home 挂载启用 nodev 选项",
+      "category": "挂载选项",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-1.1.6.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT path FROM mounts WHERE path='/home' AND flags NOT LIKE '%nodev%';"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "在 /etc/fstab 中为 /home 增加 nodev 挂载选项后 `mount -o remount /home`。"
+    },
+    {
+      "rule_id": "NB-NET-001",
+      "title": "未监听 Telnet（23）",
+      "category": "网络服务最小化",
+      "platform": "linux",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-2.2.x"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT port FROM listening_ports WHERE port=23;"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "Telnet 明文传输；停用 telnet 服务，改用 SSH。"
+    },
+    {
+      "rule_id": "NB-NET-002",
+      "title": "未监听 rsh/rlogin（513/514）",
+      "category": "网络服务最小化",
+      "platform": "linux",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-2.2.x"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT port FROM listening_ports WHERE port IN (512,513,514);"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "r 系服务不安全；卸载 rsh-server。"
+    },
+    {
+      "rule_id": "NB-NET-003",
+      "title": "未运行 telnet/rsh 等明文服务进程",
+      "category": "网络服务最小化",
+      "platform": "linux",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-2.2.x"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT name FROM processes WHERE name IN ('telnetd','in.telnetd','rshd','in.rshd','rlogind');"
+      },
+      "judge": {
+        "operator": "expect_empty",
+        "on_missing": "pass"
+      },
+      "remediation_template": "停止并卸载明文远程服务。"
+    },
+    {
+      "rule_id": "NB-NET-004",
+      "title": "已运行时间同步服务（chrony/ntp）",
+      "category": "网络服务最小化",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.3",
+        "CIS-Linux-2.1.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT name FROM processes WHERE name IN ('chronyd','ntpd');"
+      },
+      "judge": {
+        "operator": "expect_nonempty",
+        "on_missing": "fail"
+      },
+      "remediation_template": "安装并启用 chrony：`systemctl enable --now chronyd`。"
+    },
+    {
+      "rule_id": "NB-NET-005",
+      "title": "已运行审计守护进程 auditd",
+      "category": "安全审计",
+      "platform": "linux",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.3 安全审计",
+        "CIS-Linux-4.1.1.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT name FROM processes WHERE name='auditd';"
+      },
+      "judge": {
+        "operator": "expect_nonempty",
+        "on_missing": "fail"
+      },
+      "remediation_template": "安装并启用 auditd：`systemctl enable --now auditd`。"
+    },
+    {
+      "rule_id": "NB-WIN-001",
+      "title": "限制匿名枚举 SAM 及共享",
+      "category": "认证加固",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Win-2.3.10.3"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\RestrictAnonymous';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 RestrictAnonymous=1（组策略：网络访问-不允许 SAM 帐户和共享的匿名枚举）。"
+    },
+    {
+      "rule_id": "NB-WIN-002",
+      "title": "限制匿名枚举 SAM 帐户",
+      "category": "认证加固",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Win-2.3.10.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\RestrictAnonymousSAM';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 RestrictAnonymousSAM=1。"
+    },
+    {
+      "rule_id": "NB-WIN-003",
+      "title": "限制空口令帐户仅本地登录",
+      "category": "认证加固",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Win-2.3.1.3"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\LimitBlankPasswordUse';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 LimitBlankPasswordUse=1。"
+    },
+    {
+      "rule_id": "NB-WIN-004",
+      "title": "NTLM 认证级别设为仅 NTLMv2（5）",
+      "category": "认证加固",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Win-2.3.11.7"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\LmCompatibilityLevel';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "5",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 LmCompatibilityLevel=5（仅发送 NTLMv2，拒绝 LM/NTLM）。"
+    },
+    {
+      "rule_id": "NB-WIN-005",
+      "title": "登录界面不显示上次登录用户名",
+      "category": "认证加固",
+      "platform": "windows",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Win-2.3.7.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\DontDisplayLastUserName';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 DontDisplayLastUserName=1。"
+    },
+    {
+      "rule_id": "NB-WIN-006",
+      "title": "启用用户账户控制（UAC）",
+      "category": "认证加固",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-2.3.17.6"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\EnableLUA';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 EnableLUA=1 后重启。"
+    },
+    {
+      "rule_id": "NB-WIN-007",
+      "title": "UAC 管理员提升需在安全桌面同意",
+      "category": "认证加固",
+      "platform": "windows",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-2.3.17.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\ConsentPromptBehaviorAdmin';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "2",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 ConsentPromptBehaviorAdmin=2。"
+    },
+    {
+      "rule_id": "NB-WIN-010",
+      "title": "禁用 SMBv1 服务端",
+      "category": "网络协议加固",
+      "platform": "windows",
+      "severity": "critical",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10 入侵防范",
+        "CIS-Win-18.3.3"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters\\SMB1';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 SMB1=0 并卸载 SMB1 特性（防 WannaCry 类蠕虫）。"
+    },
+    {
+      "rule_id": "NB-WIN-011",
+      "title": "SMB 服务端要求安全签名",
+      "category": "网络协议加固",
+      "platform": "windows",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.2 完整性",
+        "CIS-Win-2.3.9.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters\\RequireSecuritySignature';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 RequireSecuritySignature=1。"
+    },
+    {
+      "rule_id": "NB-WIN-012",
+      "title": "SMB 客户端要求安全签名",
+      "category": "网络协议加固",
+      "platform": "windows",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.2",
+        "CIS-Win-2.3.8.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters\\RequireSecuritySignature';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 RequireSecuritySignature=1。"
+    },
+    {
+      "rule_id": "NB-WIN-013",
+      "title": "拒绝 NetBIOS 名称释放请求",
+      "category": "网络协议加固",
+      "platform": "windows",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Win-18.5.4.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NetBT\\Parameters\\NoNameReleaseOnDemand';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 NoNameReleaseOnDemand=1。"
+    },
+    {
+      "rule_id": "NB-WIN-020",
+      "title": "RDP 要求网络级身份验证（NLA）",
+      "category": "远程访问加固",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Win-18.9.65.3.9.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp\\UserAuthentication';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 UserAuthentication=1（组策略：要求使用网络级别身份验证的远程连接）。"
+    },
+    {
+      "rule_id": "NB-WIN-021",
+      "title": "RDP 加密级别设为高",
+      "category": "远程访问加固",
+      "platform": "windows",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.2",
+        "CIS-Win-18.9.65.3.9.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services\\MinEncryptionLevel';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "3",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 MinEncryptionLevel=3（高，128 位）。"
+    },
+    {
+      "rule_id": "NB-WIN-022",
+      "title": "RDP 连接时始终提示输入口令",
+      "category": "远程访问加固",
+      "platform": "windows",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Win-18.9.65.3.9.3"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services\\fPromptForPassword';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 fPromptForPassword=1。"
+    },
+    {
+      "rule_id": "NB-WIN-030",
+      "title": "禁用所有驱动器自动运行",
+      "category": "外设与自动运行",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Win-18.9.8.3"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\\NoDriveTypeAutoRun';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "255",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 NoDriveTypeAutoRun=255（0xFF）。"
+    },
+    {
+      "rule_id": "NB-WIN-031",
+      "title": "禁止自动运行命令",
+      "category": "外设与自动运行",
+      "platform": "windows",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Win-18.9.8.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\\NoAutorun';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 NoAutorun=1。"
+    },
+    {
+      "rule_id": "NB-WIN-040",
+      "title": "强制使用高级审计策略子类别",
+      "category": "安全审计",
+      "platform": "windows",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.3 安全审计",
+        "CIS-Win-2.3.2.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\SCENoApplyLegacyAuditPolicy';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 SCENoApplyLegacyAuditPolicy=1。"
+    },
+    {
+      "rule_id": "NB-WIN-041",
+      "title": "安全日志大小不小于 192MB",
+      "category": "安全审计",
+      "platform": "windows",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.3",
+        "CIS-Win-18.9.27.2.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\EventLog\\Security\\MaxSize';"
+      },
+      "judge": {
+        "operator": "gte",
+        "field": "data",
+        "expected": "196608",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 Security\\MaxSize ≥ 196608(KB)。"
+    },
+    {
+      "rule_id": "NB-WIN-050",
+      "title": "启用域配置文件防火墙",
+      "category": "主机防火墙",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-9.1.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile\\EnableFirewall';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "启用域配置文件 Windows 防火墙。"
+    },
+    {
+      "rule_id": "NB-WIN-051",
+      "title": "启用专用配置文件防火墙",
+      "category": "主机防火墙",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-9.2.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\EnableFirewall';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "启用专用配置文件 Windows 防火墙。"
+    },
+    {
+      "rule_id": "NB-WIN-052",
+      "title": "启用公用配置文件防火墙",
+      "category": "主机防火墙",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-9.3.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\\EnableFirewall';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "启用公用配置文件 Windows 防火墙。"
+    },
+    {
+      "rule_id": "NB-WIN-060",
+      "title": "未禁用 Windows Defender 防病毒",
+      "category": "恶意代码防范",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.9 恶意代码防范",
+        "CIS-Win-18.9.47"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\DisableAntiSpyware';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "确保 DisableAntiSpyware=0（不禁用 Defender）。"
+    },
+    {
+      "rule_id": "NB-WSV-001",
+      "title": "禁用 Telnet 服务",
+      "category": "服务最小化",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-5.x"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT start_type FROM services WHERE name='TlntSvr';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "start_type",
+        "expected": "DISABLED",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用 Windows 服务 TlntSvr：`sc config TlntSvr start= disabled` 并 `sc stop TlntSvr`。"
+    },
+    {
+      "rule_id": "NB-WSV-002",
+      "title": "禁用远程注册表服务",
+      "category": "服务最小化",
+      "platform": "windows",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-5.30"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT start_type FROM services WHERE name='RemoteRegistry';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "start_type",
+        "expected": "DISABLED",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用 Windows 服务 RemoteRegistry：`sc config RemoteRegistry start= disabled` 并 `sc stop RemoteRegistry`。"
+    },
+    {
+      "rule_id": "NB-WSV-003",
+      "title": "禁用 SSDP 发现服务",
+      "category": "服务最小化",
+      "platform": "windows",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-5.x"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT start_type FROM services WHERE name='SSDPSRV';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "start_type",
+        "expected": "DISABLED",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用 Windows 服务 SSDPSRV：`sc config SSDPSRV start= disabled` 并 `sc stop SSDPSRV`。"
+    },
+    {
+      "rule_id": "NB-WSV-004",
+      "title": "禁用 UPnP 设备主机服务",
+      "category": "服务最小化",
+      "platform": "windows",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-5.x"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT start_type FROM services WHERE name='upnphost';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "start_type",
+        "expected": "DISABLED",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用 Windows 服务 upnphost：`sc config upnphost start= disabled` 并 `sc stop upnphost`。"
+    },
+    {
+      "rule_id": "NB-WSV-005",
+      "title": "禁用路由和远程访问服务",
+      "category": "服务最小化",
+      "platform": "windows",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-5.29"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT start_type FROM services WHERE name='RemoteAccess';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "start_type",
+        "expected": "DISABLED",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用 Windows 服务 RemoteAccess：`sc config RemoteAccess start= disabled` 并 `sc stop RemoteAccess`。"
+    },
+    {
+      "rule_id": "NB-WSV-006",
+      "title": "禁用 Internet 连接共享",
+      "category": "服务最小化",
+      "platform": "windows",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-5.x"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT start_type FROM services WHERE name='SharedAccess';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "start_type",
+        "expected": "DISABLED",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用 Windows 服务 SharedAccess：`sc config SharedAccess start= disabled` 并 `sc stop SharedAccess`。"
+    },
+    {
+      "rule_id": "NB-WSV-007",
+      "title": "禁用 SNMP 服务（如未使用）",
+      "category": "服务最小化",
+      "platform": "windows",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-5.x"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT start_type FROM services WHERE name='SNMP';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "start_type",
+        "expected": "DISABLED",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用 Windows 服务 SNMP：`sc config SNMP start= disabled` 并 `sc stop SNMP`。"
+    },
+    {
+      "rule_id": "NB-WSV-008",
+      "title": "禁用 IIS 管理服务（如未使用）",
+      "category": "服务最小化",
+      "platform": "windows",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-5.x"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT start_type FROM services WHERE name='WMSvc';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "start_type",
+        "expected": "DISABLED",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用 Windows 服务 WMSvc：`sc config WMSvc start= disabled` 并 `sc stop WMSvc`。"
+    },
+    {
+      "rule_id": "NB-SSH-001",
+      "title": "SSH 禁止 root 直接登录",
+      "category": "远程访问加固",
+      "platform": "linux",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1 身份鉴别",
+        "CIS-Linux-5.2.8"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT value FROM augeas WHERE node='/files/etc/ssh/sshd_config/PermitRootLogin';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "value",
+        "expected": "no",
+        "on_missing": "fail"
+      },
+      "remediation_template": "sshd_config 设 `PermitRootLogin no` 后 reload sshd。"
+    },
+    {
+      "rule_id": "NB-SSH-002",
+      "title": "SSH 禁止空口令登录",
+      "category": "远程访问加固",
+      "platform": "linux",
+      "severity": "critical",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Linux-5.2.9"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT value FROM augeas WHERE node='/files/etc/ssh/sshd_config/PermitEmptyPasswords';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "value",
+        "expected": "no",
+        "on_missing": "fail"
+      },
+      "remediation_template": "sshd_config 设 `PermitEmptyPasswords no`。"
+    },
+    {
+      "rule_id": "NB-SSH-003",
+      "title": "SSH 禁用 X11 转发",
+      "category": "远程访问加固",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-5.2.6"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT value FROM augeas WHERE node='/files/etc/ssh/sshd_config/X11Forwarding';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "value",
+        "expected": "no",
+        "on_missing": "fail"
+      },
+      "remediation_template": "sshd_config 设 `X11Forwarding no`。"
+    },
+    {
+      "rule_id": "NB-SSH-004",
+      "title": "SSH 忽略 .rhosts 文件",
+      "category": "远程访问加固",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Linux-5.2.7"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT value FROM augeas WHERE node='/files/etc/ssh/sshd_config/IgnoreRhosts';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "value",
+        "expected": "yes",
+        "on_missing": "fail"
+      },
+      "remediation_template": "sshd_config 设 `IgnoreRhosts yes`。"
+    },
+    {
+      "rule_id": "NB-SSH-005",
+      "title": "SSH 禁用基于主机的认证",
+      "category": "远程访问加固",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Linux-5.2.7"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT value FROM augeas WHERE node='/files/etc/ssh/sshd_config/HostbasedAuthentication';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "value",
+        "expected": "no",
+        "on_missing": "fail"
+      },
+      "remediation_template": "sshd_config 设 `HostbasedAuthentication no`。"
+    },
+    {
+      "rule_id": "NB-SSH-006",
+      "title": "SSH 禁止用户环境变量注入",
+      "category": "远程访问加固",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Linux-5.2.10"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT value FROM augeas WHERE node='/files/etc/ssh/sshd_config/PermitUserEnvironment';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "value",
+        "expected": "no",
+        "on_missing": "fail"
+      },
+      "remediation_template": "sshd_config 设 `PermitUserEnvironment no`。"
+    },
+    {
+      "rule_id": "NB-SSH-007",
+      "title": "SSH 认证重试次数不超过 4",
+      "category": "远程访问加固",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Linux-5.2.5"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT value FROM augeas WHERE node='/files/etc/ssh/sshd_config/MaxAuthTries';"
+      },
+      "judge": {
+        "operator": "lte",
+        "field": "value",
+        "expected": "4",
+        "on_missing": "fail"
+      },
+      "remediation_template": "sshd_config 设 `MaxAuthTries 4`。"
+    },
+    {
+      "rule_id": "NB-SSH-008",
+      "title": "SSH 登录宽限时间不超过 60 秒",
+      "category": "远程访问加固",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Linux-5.2.17"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT value FROM augeas WHERE node='/files/etc/ssh/sshd_config/LoginGraceTime';"
+      },
+      "judge": {
+        "operator": "lte",
+        "field": "value",
+        "expected": "60",
+        "on_missing": "fail"
+      },
+      "remediation_template": "sshd_config 设 `LoginGraceTime 60`。"
+    },
+    {
+      "rule_id": "NB-PWD-001",
+      "title": "口令最长使用期限不超过 90 天",
+      "category": "账户与口令",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Linux-5.4.1.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT value FROM augeas WHERE node='/files/etc/login.defs/PASS_MAX_DAYS';"
+      },
+      "judge": {
+        "operator": "lte",
+        "field": "value",
+        "expected": "90",
+        "on_missing": "fail"
+      },
+      "remediation_template": "login.defs 设 `PASS_MAX_DAYS 90`。"
+    },
+    {
+      "rule_id": "NB-PWD-002",
+      "title": "口令最短使用期限不少于 1 天",
+      "category": "账户与口令",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Linux-5.4.1.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT value FROM augeas WHERE node='/files/etc/login.defs/PASS_MIN_DAYS';"
+      },
+      "judge": {
+        "operator": "gte",
+        "field": "value",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "login.defs 设 `PASS_MIN_DAYS 1`。"
+    },
+    {
+      "rule_id": "NB-PWD-003",
+      "title": "口令到期提前告警不少于 7 天",
+      "category": "账户与口令",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Linux-5.4.1.3"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT value FROM augeas WHERE node='/files/etc/login.defs/PASS_WARN_AGE';"
+      },
+      "judge": {
+        "operator": "gte",
+        "field": "value",
+        "expected": "7",
+        "on_missing": "fail"
+      },
+      "remediation_template": "login.defs 设 `PASS_WARN_AGE 7`。"
+    },
+    {
+      "rule_id": "NB-KRN-019",
+      "title": "启用反向路径过滤（default）",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-3.3.9"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv4.conf.default.rp_filter';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-020",
+      "title": "记录异常来源包（default）",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.3",
+        "CIS-Linux-3.3.6"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv4.conf.default.log_martians';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-021",
+      "title": "禁止接受 ICMP 重定向（default 补充）",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-3.3.4"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv4.conf.default.accept_redirects';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-022",
+      "title": "禁止接受 IPv6 ICMP 重定向（default）",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-3.3.11"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv6.conf.default.accept_redirects';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-023",
+      "title": "禁止接受 IPv6 路由通告（default）",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-3.3.12"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='net.ipv6.conf.default.accept_ra';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-KRN-024",
+      "title": "限制内核指针地址泄露",
+      "category": "内核网络参数",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Linux-1.5.x"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT current_value FROM system_controls WHERE name='kernel.kptr_restrict';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "current_value",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "写入 /etc/sysctl.d/ 后 `sysctl --system`。"
+    },
+    {
+      "rule_id": "NB-FIL-007",
+      "title": "/etc/cron.d 目录权限为 0700",
+      "category": "文件权限",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.4",
+        "CIS-Linux-5.1.7"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT mode FROM file WHERE path='/etc/cron.d';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "mode",
+        "expected": "0700",
+        "on_missing": "fail"
+      },
+      "remediation_template": "`chmod 0700 /etc/cron.d`。"
+    },
+    {
+      "rule_id": "NB-FIL-008",
+      "title": "/etc/cron.daily 目录权限为 0700",
+      "category": "文件权限",
+      "platform": "linux",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.4",
+        "CIS-Linux-5.1.4"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT mode FROM file WHERE path='/etc/cron.daily';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "mode",
+        "expected": "0700",
+        "on_missing": "fail"
+      },
+      "remediation_template": "`chmod 0700 /etc/cron.daily`。"
+    },
+    {
+      "rule_id": "NB-FIL-009",
+      "title": "/boot/grub2/grub.cfg 权限不宽于 0600",
+      "category": "文件权限",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.4",
+        "CIS-Linux-1.4.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT mode FROM file WHERE path='/boot/grub2/grub.cfg';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "mode",
+        "expected": "0600",
+        "on_missing": "fail"
+      },
+      "remediation_template": "`chmod 0600 /boot/grub2/grub.cfg`（路径随发行版）。"
+    },
+    {
+      "rule_id": "NB-AUD-001",
+      "title": "已部署文件完整性基线（AIDE 数据库存在）",
+      "category": "完整性校验",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.2 数据完整性",
+        "CIS-Linux-1.3.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT path FROM file WHERE path IN ('/var/lib/aide/aide.db.gz','/var/lib/aide/aide.db');"
+      },
+      "judge": {
+        "operator": "expect_nonempty",
+        "on_missing": "fail"
+      },
+      "remediation_template": "安装并初始化 AIDE：`aide --init` 后将新库置为基线库。"
+    },
+    {
+      "rule_id": "NB-AUD-002",
+      "title": "已运行系统日志服务 rsyslog",
+      "category": "安全审计",
+      "platform": "linux",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.3",
+        "CIS-Linux-4.2.1.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT name FROM processes WHERE name='rsyslogd';"
+      },
+      "judge": {
+        "operator": "expect_nonempty",
+        "on_missing": "fail"
+      },
+      "remediation_template": "启用 rsyslog：`systemctl enable --now rsyslog`。"
+    },
+    {
+      "rule_id": "NB-NET-006",
+      "title": "已运行主机防火墙（firewalld/nftables）",
+      "category": "网络服务最小化",
+      "platform": "linux",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Linux-3.4.x"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT name FROM processes WHERE name IN ('firewalld','nft','nftables');"
+      },
+      "judge": {
+        "operator": "expect_nonempty",
+        "on_missing": "fail"
+      },
+      "remediation_template": "启用主机防火墙：`systemctl enable --now firewalld`。"
+    },
+    {
+      "rule_id": "NB-WIN-070",
+      "title": "禁用 IPv4 源路由",
+      "category": "网络协议加固",
+      "platform": "windows",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Win-18.5.19.2.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\DisableIPSourceRouting';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "2",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 DisableIPSourceRouting=2。"
+    },
+    {
+      "rule_id": "NB-WIN-071",
+      "title": "禁止 ICMP 重定向覆盖 OSPF 路由",
+      "category": "网络协议加固",
+      "platform": "windows",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Win-18.5.19.2.3"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\EnableICMPRedirect';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 EnableICMPRedirect=0。"
+    },
+    {
+      "rule_id": "NB-WIN-072",
+      "title": "禁止 WDigest 明文缓存凭据（防 mimikatz）",
+      "category": "认证加固",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Win-18.3.7"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\WDigest\\UseLogonCredential';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 UseLogonCredential=0。"
+    },
+    {
+      "rule_id": "NB-WIN-073",
+      "title": "启用 LSASS 保护进程（RunAsPPL）",
+      "category": "认证加固",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Win-18.3.6"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\RunAsPPL';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 RunAsPPL=1 后重启。"
+    },
+    {
+      "rule_id": "NB-WIN-074",
+      "title": "禁止存储 LM 哈希",
+      "category": "认证加固",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Win-2.3.11.5"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\NoLMHash';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 NoLMHash=1。"
+    },
+    {
+      "rule_id": "NB-WIN-075",
+      "title": "禁止向 SMB 服务器发送明文口令",
+      "category": "网络协议加固",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Win-18.5.8.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters\\EnablePlainTextPassword';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 EnablePlainTextPassword=0。"
+    },
+    {
+      "rule_id": "NB-WIN-076",
+      "title": "禁用自动登录",
+      "category": "认证加固",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Win-18.x"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\\AutoAdminLogon';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 AutoAdminLogon=0 并清除明文口令。"
+    },
+    {
+      "rule_id": "NB-WIN-077",
+      "title": "缓存登录凭据数不超过 4",
+      "category": "认证加固",
+      "platform": "windows",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Win-2.3.7.5"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\\CachedLogonsCount';"
+      },
+      "judge": {
+        "operator": "lte",
+        "field": "data",
+        "expected": "4",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 CachedLogonsCount<=4。"
+    },
+    {
+      "rule_id": "NB-WIN-078",
+      "title": "禁止以提升权限安装 MSI",
+      "category": "系统加固",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-18.9.85.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer\\AlwaysInstallElevated';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 AlwaysInstallElevated=0。"
+    },
+    {
+      "rule_id": "NB-WIN-079",
+      "title": "内置管理员启用管理审批模式",
+      "category": "认证加固",
+      "platform": "windows",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-2.3.17.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\FilterAdministratorToken';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 FilterAdministratorToken=1。"
+    },
+    {
+      "rule_id": "NB-WIN-080",
+      "title": "未禁用自动更新",
+      "category": "补丁管理",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.5 补丁管理",
+        "CIS-Win-18.9.108.2.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU\\NoAutoUpdate';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 NoAutoUpdate=0。"
+    },
+    {
+      "rule_id": "NB-WIN-081",
+      "title": "自动更新配置为自动下载并计划安装",
+      "category": "补丁管理",
+      "platform": "windows",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.5",
+        "CIS-Win-18.9.108.2.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU\\AUOptions';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "4",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 AUOptions=4。"
+    },
+    {
+      "rule_id": "NB-WIN-082",
+      "title": "未禁用 Defender 实时监控",
+      "category": "恶意代码防范",
+      "platform": "windows",
+      "severity": "high",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.9",
+        "CIS-Win-18.9.47.9.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Real-Time Protection\\DisableRealtimeMonitoring';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "确保 DisableRealtimeMonitoring=0。"
+    },
+    {
+      "rule_id": "NB-WIN-083",
+      "title": "启用 PowerShell 脚本块日志",
+      "category": "安全审计",
+      "platform": "windows",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.3",
+        "CIS-Win-18.9.100.1"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging\\EnableScriptBlockLogging';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 EnableScriptBlockLogging=1。"
+    },
+    {
+      "rule_id": "NB-WIN-084",
+      "title": "禁用 LLMNR（防投毒）",
+      "category": "网络协议加固",
+      "platform": "windows",
+      "severity": "medium",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.10",
+        "CIS-Win-18.5.4.2"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient\\EnableMulticast';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "0",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 EnableMulticast=0。"
+    },
+    {
+      "rule_id": "NB-WIN-085",
+      "title": "交互登录空闲锁屏不超过 900 秒",
+      "category": "认证加固",
+      "platform": "windows",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.1",
+        "CIS-Win-2.3.7.3"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\InactivityTimeoutSecs';"
+      },
+      "judge": {
+        "operator": "lte",
+        "field": "data",
+        "expected": "900",
+        "on_missing": "fail"
+      },
+      "remediation_template": "设置 InactivityTimeoutSecs<=900（且>0）。"
+    },
+    {
+      "rule_id": "NB-WIN-086",
+      "title": "审计特权使用（备份/还原权限）",
+      "category": "安全审计",
+      "platform": "windows",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.4.3",
+        "CIS-Win-2.3.4.x"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\FullPrivilegeAuditing';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "data",
+        "expected": "1",
+        "on_missing": "fail"
+      },
+      "remediation_template": "启用完整权限审计。"
+    },
+    {
+      "rule_id": "NB-WSV-009",
+      "title": "禁用传真服务",
+      "category": "服务最小化",
+      "platform": "windows",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-5.x"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT start_type FROM services WHERE name='Fax';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "start_type",
+        "expected": "DISABLED",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用 Windows 服务 Fax：`sc config Fax start= disabled` 并 `sc stop Fax`。"
+    },
+    {
+      "rule_id": "NB-WSV-010",
+      "title": "禁用 WMP 网络共享服务",
+      "category": "服务最小化",
+      "platform": "windows",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-5.x"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT start_type FROM services WHERE name='WMPNetworkSvc';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "start_type",
+        "expected": "DISABLED",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用 Windows 服务 WMPNetworkSvc：`sc config WMPNetworkSvc start= disabled` 并 `sc stop WMPNetworkSvc`。"
+    },
+    {
+      "rule_id": "NB-WSV-011",
+      "title": "禁用 WSL 管理服务（如未使用）",
+      "category": "服务最小化",
+      "platform": "windows",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-5.x"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT start_type FROM services WHERE name='LxssManager';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "start_type",
+        "expected": "DISABLED",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用 Windows 服务 LxssManager：`sc config LxssManager start= disabled` 并 `sc stop LxssManager`。"
+    },
+    {
+      "rule_id": "NB-WSV-012",
+      "title": "禁用远程桌面配置服务（如未使用）",
+      "category": "服务最小化",
+      "platform": "windows",
+      "severity": "low",
+      "depends_on": null,
+      "standard_refs": [
+        "等保2.0-三级-8.1.3.1",
+        "CIS-Win-5.x"
+      ],
+      "collect": {
+        "type": "osquery",
+        "query": "SELECT start_type FROM services WHERE name='SessionEnv';"
+      },
+      "judge": {
+        "operator": "equals",
+        "field": "start_type",
+        "expected": "DISABLED",
+        "on_missing": "pass"
+      },
+      "remediation_template": "禁用 Windows 服务 SessionEnv：`sc config SessionEnv start= disabled` 并 `sc stop SessionEnv`。"
+    }
+  ]
+}

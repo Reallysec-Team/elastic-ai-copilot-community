@@ -1,0 +1,16 @@
+# Seed data for the bundled demo OpenLDAP — one organizational unit + one user.
+# Applied on first start of the OpenLDAP container (osixia bootstrap LDIF).
+# Production: this stands in for the customer's real AD/LDAP directory.
+
+dn: ou=users,dc=rst,dc=local
+objectClass: organizationalUnit
+ou: users
+
+dn: uid=analyst.ldap,ou=users,dc=rst,dc=local
+objectClass: inetOrgPerson
+uid: analyst.ldap
+cn: LDAP Analyst
+sn: Analyst
+givenName: LDAP
+mail: analyst.ldap@rst.local
+userPassword: Ldap123!

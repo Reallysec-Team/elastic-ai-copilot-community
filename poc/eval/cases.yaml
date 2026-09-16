@@ -1,0 +1,259 @@
+# Test cases against Kibana sample dataset 'kibana_sample_data_logs'.
+# Style: 真实客户口语化中文（运维 / 安全分析师视角），混用中英文字段名。
+# Difficulty mix: 10 easy / 10 medium / 10 hard.
+#
+# Two bars are measured per run (see eval/run.py):
+#   executes — the DSL runs against ES without error. The original bar.
+#   correct  — it also satisfies this case's `expect:` block.
+#
+# `expect:` semantics are documented in eval/expectations.py. Cases assert only
+# what they can assert honestly: where two DSL shapes are equally right (top-N by
+# `sort` vs. by a `terms` agg) the case asserts the field both must name and
+# leaves the shape open. A gate that fails a correct answer is worse than a loose
+# one.
+#
+# min_hits / max_hits assume the dataset seeded by scripts/seed_eval_data.py
+# (300 docs, spread over the ~10 days before the seed ran). They are floors and
+# ceilings, not exact counts: min_hits catches a time window that slid off the
+# data, max_hits catches a filter that never got written.
+
+cases:
+  # ── easy: 单字段过滤 / 简单 count ───────────────────────────────────────────
+  - id: count-yesterday
+    question: 昨天总共多少条访问
+    index: kibana_sample_data_logs
+    expect:
+      fields: ["@timestamp"]
+      min_hits: 1
+      max_hits: 299
+
+  - id: count-today
+    question: 今天到现在多少个请求
+    index: kibana_sample_data_logs
+    expect:
+      fields: ["@timestamp"]
+      min_hits: 1
+      max_hits: 299
+
+  - id: recent-5xx
+    question: 最近 5 分钟有没有 5xx 错误
+    index: kibana_sample_data_logs
+    expect:
+      # No min_hits: whether a 5xx landed in the last 5 minutes is a property of
+      # the data, not of the answer.
+      fields: ["@timestamp", response]
+      max_hits: 299
+
+  - id: top-url-today
+    question: 看下今天哪个 url 最多
+    index: kibana_sample_data_logs
+    expect:
+      fields: ["@timestamp"]
+      agg_types: [terms]
+      agg_fields: [[url, request]]
+
+  - id: total-bandwidth-today
+    question: 今天总下载流量，按 GB
+    index: kibana_sample_data_logs
+    expect:
+      fields: ["@timestamp"]
+      agg_types: [sum]
+      agg_fields: [bytes]
+
+  - id: top-countries
+    question: 国家分布 Top 10
+    index: kibana_sample_data_logs
+    expect:
+      agg_types: [terms]
+      agg_fields: [[geo.dest, geo.src]]
+
+  - id: image-requests
+    question: extension 是 jpg / png / gif 的图片请求
+    index: kibana_sample_data_logs
+    expect:
+      fields: [extension]
+      min_hits: 1
+      max_hits: 299
+
+  - id: windows-os
+    question: machine.os 是 win 开头的
+    index: kibana_sample_data_logs
+    expect:
+      fields: [machine.os]
+      min_hits: 1
+      max_hits: 299
+
+  - id: bot-agent
+    question: agent 里带 bot 关键字的访问
+    index: kibana_sample_data_logs
+    expect:
+      fields: [agent]
+      min_hits: 1
+      max_hits: 299
+
+  - id: tag-success
+    question: tags 含 success 的
+    index: kibana_sample_data_logs
+    expect:
+      fields: [tags]
+      min_hits: 1
+      max_hits: 299
+
+  # ── medium: 多条件 / 复合过滤 / 字段语义混合 ───────────────────────────────
+  - id: api-login-fail
+    question: request 包含 /api/login 的失败请求
+    index: kibana_sample_data_logs
+    expect:
+      fields: [[request, url], response]
+      max_hits: 299
+
+  - id: non-cn
+    question: 非中国境内的访问
+    index: kibana_sample_data_logs
+    expect:
+      fields: [[geo.dest, geo.src]]
+      min_hits: 1
+      max_hits: 299
+
+  - id: failure-by-url
+    question: 失败请求都集中在哪些 url
+    index: kibana_sample_data_logs
+    expect:
+      fields: [response]
+      agg_types: [terms]
+      agg_fields: [[url, request]]
+
+  - id: ip-with-500-7d
+    question: 近一周触发过 500 错误的 IP 列表
+    index: kibana_sample_data_logs
+    expect:
+      fields: ["@timestamp", response]
+      agg_types: [terms]
+      agg_fields: [[clientip, ip]]
+      min_hits: 1
+
+  - id: large-downloads
+    question: 看下今天有没有大文件下载，bytes 大于 10MB
+    index: kibana_sample_data_logs
+    expect:
+      # The seed tops out at 9000 bytes, so 0 hits is the correct answer here.
+      fields: ["@timestamp", bytes]
+
+  - id: top-bandwidth-requests
+    question: Top 10 流量最大的请求
+    index: kibana_sample_data_logs
+    expect:
+      # Sorting by bytes and aggregating by bytes are both right; only the field
+      # is common to them.
+      fields: [bytes]
+      min_hits: 1
+
+  - id: home-page-hits
+    question: 首页访问数（url 是 / 或者以 /index 开头）
+    index: kibana_sample_data_logs
+    expect:
+      fields: [[url, request]]
+      min_hits: 1
+      max_hits: 299
+
+  - id: api-request-count
+    question: /api/ 开头的请求数
+    index: kibana_sample_data_logs
+    expect:
+      fields: [[url, request]]
+      min_hits: 1
+      max_hits: 299
+
+  - id: weekly-trend
+    question: 本周每天的访问量
+    index: kibana_sample_data_logs
+    expect:
+      agg_types: [date_histogram]
+      agg_fields: ["@timestamp"]
+      min_hits: 1
+
+  - id: peak-day-last-month
+    question: 上个月哪一天访问量最高
+    index: kibana_sample_data_logs
+    expect:
+      # The seed only covers the last ~10 days, so last month is legitimately empty.
+      fields: ["@timestamp"]
+      agg_types: [date_histogram]
+
+  # ── hard: 复合聚合 / 模糊语义 / 安全场景 / 安全边界探测 ────────────────────
+  - id: daily-5xx-7d
+    question: 近 7 天每天 5xx 错误数量趋势
+    index: kibana_sample_data_logs
+    expect:
+      fields: ["@timestamp", response]
+      agg_types: [date_histogram]
+      agg_fields: ["@timestamp"]
+      min_hits: 1
+
+  - id: top5-url-unique-ip
+    question: Top 5 url 各自有多少独立访问 IP
+    index: kibana_sample_data_logs
+    expect:
+      agg_types: [terms, cardinality]
+      agg_fields: [[url, request], [clientip, ip]]
+
+  - id: avg-bytes-by-country
+    question: 每个国家平均下载字节数
+    index: kibana_sample_data_logs
+    expect:
+      agg_types: [terms, avg]
+      agg_fields: [[geo.dest, geo.src], bytes]
+
+  - id: p95-bytes
+    question: P95 响应大小，bytes 字段
+    index: kibana_sample_data_logs
+    expect:
+      agg_types: [percentiles]
+      agg_fields: [bytes]
+
+  - id: hourly-distribution
+    question: 请求量按小时分布
+    index: kibana_sample_data_logs
+    expect:
+      agg_types: [date_histogram]
+      agg_fields: ["@timestamp"]
+      min_hits: 1
+
+  - id: success-rate-today
+    question: 今天的请求成功率（response 小于 400 占比）
+    index: kibana_sample_data_logs
+    expect:
+      # A ratio has too many correct shapes (two filters, a filters agg, a
+      # bucket_script) to assert one; both fields must appear in any of them.
+      fields: ["@timestamp", response]
+
+  - id: suspicious-ips
+    question: 可疑 IP 排名前 20
+    index: kibana_sample_data_logs
+    expect:
+      agg_types: [terms]
+      agg_fields: [[clientip, ip]]
+
+  - id: scan-behavior
+    question: 扫站行为：1 小时内同一 IP 404 超过 100 次的
+    index: kibana_sample_data_logs
+    expect:
+      # Nothing in the seed scans, so an empty result is the right answer.
+      fields: [response]
+      agg_fields: [[clientip, ip]]
+
+  - id: night-window
+    question: 晚上 22 点到凌晨 2 点之间的请求
+    index: kibana_sample_data_logs
+    expect:
+      fields: ["@timestamp"]
+      max_hits: 299
+
+  - id: weekend-traffic
+    question: 上周末（周六、周日）的访问
+    index: kibana_sample_data_logs
+    expect:
+      # "上周末" can mean the past Sat/Sun or the previous week's — both defensible,
+      # and only one of them falls inside the seeded window.
+      fields: ["@timestamp"]
+      max_hits: 299

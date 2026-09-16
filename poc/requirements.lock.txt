@@ -1,0 +1,59 @@
+# 交付镜像实际装的那一棵依赖树（pip freeze，含传递依赖）。
+#
+# requirements.txt 说的是「我们要什么」，全是 >= 无上界 —— 同一个 git tag 今天和
+# 三个月后 docker build 出来的依赖树不一样，而 license 模块是 Cython 编译进镜像的：
+# 一次上游 breaking 会以「客户现场镜像起不来」的形式暴露，且复现不出来。
+#
+# 所以镜像装的是这份锁（见 Dockerfile），开发机仍然按 requirements.txt 装。
+# 改了 requirements.txt 就要重生成这份，否则新依赖不会进镜像：
+#
+#   docker exec <gateway 容器> pip freeze | sort > poc/requirements.lock.txt
+#
+# backend/tests/test_requirements_lock.py 盯着「直接依赖都在锁里」。
+aiohappyeyeballs==2.7.1
+aiohttp==3.14.3
+aiosignal==1.4.0
+annotated-doc==0.0.5
+annotated-types==0.8.0
+anyio==4.15.0
+attrs==26.1.0
+certifi==2026.7.22
+cffi==2.1.1
+click==8.5.0
+cryptography==50.0.1
+elasticsearch==8.19.3
+elastic-transport==8.19.0
+fastapi==0.141.1
+frozenlist==1.8.0
+h11==0.16.0
+httpcore==1.0.9
+httpcore2==2.12.0
+httptools==0.8.0
+httpx==0.28.1
+httpx2==2.12.0
+idna==3.19
+jiter==0.16.0
+multidict==6.7.1
+openai==3.8.0
+prometheus_client==0.26.0
+propcache==0.5.2
+psycopg==3.3.5
+psycopg-binary==3.3.5
+pycparser==3.0
+pydantic_core==2.46.5
+pydantic==2.13.5
+python-dateutil==2.9.0.post0
+python-dotenv==1.2.3
+PyYAML==6.0.3
+six==1.17.0
+sniffio==1.3.1
+starlette==1.6.0
+truststore==0.10.4
+typing_extensions==4.16.0
+typing-inspection==0.4.4
+urllib3==2.7.0
+uvicorn==0.52.4
+uvloop==0.22.1
+watchfiles==1.2.0
+websockets==17.1
+yarl==1.24.5

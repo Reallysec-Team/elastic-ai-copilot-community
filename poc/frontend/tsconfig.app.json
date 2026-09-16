@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    // "node"：tempo 的 gantt / event-calendar 里有 `process.env.NODE_ENV` 判断。
+    "types": ["vite/client", "node"],
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    // 这两条从编译器挪到了 ESLint（tseslint.configs.recommended 的
+    // no-unused-vars 是 error）。原因和 tempo 自己 tsconfig 里写的一样：仓库里现在
+    // 有大量 vendored 的 ReUI 区块，它们带着「留给按页接线」的声明，编译器管这个
+    // 就等于逼人去改外来源码。`exclude: ["src/tempo"]` 挡不住它们 —— App.tsx
+    // import 了 tempo 的挂载点，TS 会顺着 import 把整棵树拉进来检查。
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": ["src"],
+  // src/tempo 是原样搬进来的 tempo 模板，按它自己的 tsconfig 检查
+  // （见 tsconfig.tempo.json 和 src/tempo/README-迁移.md）。本仓开着
+  // noUnusedLocals，模板里那些"留给接线用"的声明会全部报错，改它们就不是 1:1 了。
+  "exclude": ["src/tempo"]
+}

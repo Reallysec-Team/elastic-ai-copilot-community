@@ -1,0 +1,72 @@
+# Detection Rule Copilot eval cases — 8-10 seeds covering query / threshold / eql + refusal.
+# Style: 真实 SOC 工程师视角；中英文混用都允许。
+# Pass criteria (loose): rule_type matches expected_rule_type AND ≥1 expected_keyword
+# appears (case-insensitive) anywhere in the rule.query string.
+# Refusal cases: expected_rule_type=null → rule must be None.
+
+cases:
+  - id: query-nginx-5xx
+    question: alert any 5xx response in nginx access logs
+    index: nginx-access-*
+    expected_rule_type: query
+    expected_keywords:
+      - "5"
+      - response
+
+  - id: query-suspicious-ua
+    question: detect requests whose user_agent contains sqlmap or nikto
+    index: nginx-access-*
+    expected_rule_type: query
+    expected_keywords:
+      - sqlmap
+      - nikto
+
+  - id: threshold-brute-force
+    question: alert when same source IP fails login 5+ times in 5 minutes
+    index: auth-logs-*
+    expected_rule_type: threshold
+    expected_keywords:
+      - login
+      - fail
+
+  - id: threshold-404-scan
+    question: same client IP getting 100+ 404 responses in 1 hour (likely scanner)
+    index: nginx-access-*
+    expected_rule_type: threshold
+    expected_keywords:
+      - "404"
+
+  - id: threshold-cn-failed-logins
+    question: 登录失败超过 5 次的源 IP，时间窗 5 分钟内
+    index: auth-logs-*
+    expected_rule_type: threshold
+    expected_keywords:
+      - login
+      - fail
+
+  - id: eql-process-network
+    question: process creation followed by an outbound network connection within 10 seconds from the same host
+    index: winlogbeat-*
+    expected_rule_type: eql
+    expected_keywords:
+      - process
+      - network
+
+  - id: eql-powershell-then-encoded
+    question: powershell.exe spawn followed by an encoded command execution within 30 seconds
+    index: winlogbeat-*
+    expected_rule_type: eql
+    expected_keywords:
+      - powershell
+
+  - id: refuse-ml-anomaly
+    question: 用 ML 找出登录行为异常的账号（基于历史行为基线 anomaly detection）
+    index: auth-logs-*
+    expected_rule_type: null
+    expected_keywords: []
+
+  - id: refuse-out-of-scope
+    question: 把过去一周的告警导出成 PDF 报告发给老板
+    index: alerts-*
+    expected_rule_type: null
+    expected_keywords: []

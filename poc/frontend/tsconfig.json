@@ -1,0 +1,21 @@
+// Solution-style config: it owns no files itself, only project references.
+//
+// CONSEQUENCE, and it has bitten us: `tsc --noEmit` here checks ZERO files and
+// exits 0. It is not a type check, it is a silent no-op that reads like a
+// passing gate — a page shipped with five missing imports under a green
+// `tsc --noEmit`. Build mode is what follows references:
+//
+//     npm run typecheck     # tsc -b --force
+//     npm run build         # tsc -b && vite build
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ],
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}

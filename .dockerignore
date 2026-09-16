@@ -1,0 +1,46 @@
+**/__pycache__
+**/.venv
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pyc
+**/.pytest_cache
+**/eval/last_run.json
+**/eval/failed_cases.yaml
+**/server_guid
+**/license.key
+node_modules
+.git
+.github
+docs
+**/*.md
+!**/README.md
+kibana-plugin/build
+kibana-plugin/target
+kibana-plugin/node_modules
+
+# SEC-CC-1: premium PLAINTEXT must never enter the image — only the sealed
+# blob (poc/backend/premium/*.sealed) is copied in (sealed before the build).
+**/premium_src
+
+# Developer scratch copies. `.gitignore` alone is NOT enough: a pattern ignored
+# by git still exists in the working tree, and the working tree is the docker
+# build context. Two such files shipped in every image —
+# backend/license_verifier.py.fork-pre-converge and
+# backend/rstlic_client.py.fork-pre-converge — carrying, in readable Python, the
+# token wire format and verification path that the Cython stage exists to
+# obfuscate. Any gitignore-only pattern does the same, so match broadly.
+**/*.fork-pre-converge
+**/*.orig
+**/*.rej
+**/*.bak
+**/*~
+
+# Test and evaluation material. Shipping the suite publishes internal test
+# expectations and eval fixtures to anyone who can `docker cp`, which
+# contradicts obfuscating the backend at all. `main.py` writes
+# eval/failed_cases.yaml at runtime, so the directory is recreated then — the
+# shipped copies are not needed.
+**/tests
+**/eval
+
