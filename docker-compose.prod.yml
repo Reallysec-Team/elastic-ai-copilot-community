@@ -38,7 +38,7 @@ services:
     # Tag is installer-managed: rst-update.sh writes GATEWAY_IMAGE_TAG into .env
     # on a health-gated release install / rollback (P4). Default preserves the
     # pre-P4 behaviour when the var is unset.
-    image: rst-elastic-ai-copilot-gateway:${GATEWAY_IMAGE_TAG:-1.1.23}
+    image: rst-elastic-ai-copilot-gateway:${GATEWAY_IMAGE_TAG:-1.1.24}
     container_name: rst-elastic-ai-copilot-gateway
     restart: unless-stopped
     # Resource ceiling so one runaway request / memory leak can't starve the
@@ -140,7 +140,7 @@ services:
       # Current running version — the heartbeat sends it, and the server only
       # offers a release/content pack newer than this. Keep in lockstep with
       # GATEWAY_IMAGE_TAG (rst-update.sh bumps the tag on install).
-      - APP_VERSION=${APP_VERSION:-${GATEWAY_IMAGE_TAG:-1.1.23}}
+      - APP_VERSION=${APP_VERSION:-${GATEWAY_IMAGE_TAG:-1.1.24}}
       # Vendor content/release signing PUBLIC key — content packs + online releases
       # verify against it fail-closed. OPTIONAL: leave unset and verification falls
       # back to the built-in license public key (fine until you ship dedicated-key
@@ -210,6 +210,7 @@ services:
       # read on it (+ its .internal.* backing indices). Leave blank to disable.
       - RST_ALERT_INGEST_INDEX=${RST_ALERT_INGEST_INDEX:-}
       - RST_ALERT_INGEST_INTERVAL_SECONDS=${RST_ALERT_INGEST_INTERVAL_SECONDS:-10}
+      - RST_ALERT_INGEST_LOOKBACK=${RST_ALERT_INGEST_LOOKBACK:-}
       # 一次 webhook 推送最多 200 条告警、每条一次 LLM 摘要：并发上限 + 摘要的
       # 时间预算。超预算的照旧入库，只是没有摘要（见 .env.example 里的说明）。
       - RST_ALERT_INGEST_CONCURRENCY=${RST_ALERT_INGEST_CONCURRENCY:-}

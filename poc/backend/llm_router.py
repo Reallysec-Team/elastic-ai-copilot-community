@@ -375,6 +375,15 @@ def config_path() -> Path:
 
 def _from_yaml(path: Path) -> LLMRouter:
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not isinstance(raw, dict) or "providers" not in raw:
+        # 文件在但没有 providers 段：这是「设置 → 向量化」保存后的常态 ——
+        # save_embedding 只写 embedding: 段。原来这里把它当成「配了 0 个供应商」，
+        # 于是配好 LLM_API_KEY/LLM_MODEL 的部署一重启就 "No LLM providers
+        # configured"（2026-09-17 演示机复现）。没这段就当文件不存在，回落到 env；
+        # 显式 `providers: []` 仍然是「故意不配」。
+        logger.info("llm_providers_file_without_providers — falling back to env",
+                    extra={"path": str(path)})
+        return _from_env()
     raw_providers = raw.get("providers") or []
     routing = raw.get("routing") or {}
     strategy = (routing.get("strategy") or "failover").strip().lower()

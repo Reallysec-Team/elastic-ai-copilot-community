@@ -126,7 +126,7 @@ services:
 
   gateway:
     # No build: — the delivery bundle carries prebuilt images and no Dockerfile.
-    image: rst-elastic-ai-copilot-gateway:${GATEWAY_IMAGE_TAG:-1.1.23}
+    image: rst-elastic-ai-copilot-gateway:${GATEWAY_IMAGE_TAG:-1.1.24}
     container_name: rst-elastic-ai-copilot-sso-gateway
     environment:
       # ES/Kibana — form A (default) reads ES_URL / KIBANA_URL from .env;

@@ -6,6 +6,45 @@ delivery archive is named after.
 
 ---
 
+## 1.1.24 — 2026-09-17
+
+Four fixes found while standing up the public demo (aisoc.reallysec.com).
+No schema or `.env` changes required; one optional new key.
+
+### 修复
+
+- **周报再也不会静默丢失。** 报表归档索引 `.rst_copilot_reports` 之前由
+  第一份日报动态建映射，`boundary_key="2026-09-17"` 被推断成 date，随后
+  周报的 `2026-W38` 写入 400，daily+weekly 同开的部署每个周期都丢周报。
+  现在索引带显式映射（`boundary_key` keyword）。已有索引不动；如果你的
+  周报历史为空、日志里有 `report_persist_failed … boundary_key`，删掉该
+  索引让网关重建即可（报表可重新生成）。
+- **重启后 AI 不再「消失」。** 在「AI 设置 → 向量化」保存后，
+  `state/llm_providers.yml` 只有 `embedding:` 段，网关重启时把它当成
+  「配置了 0 个供应商」，`LLM_API_KEY / LLM_MODEL` 被整体忽略，所有 AI
+  功能报 `No LLM providers configured`。现在没有 `providers:` 段就回落到
+  环境变量；显式 `providers: []` 仍表示故意不配。
+- **安全基线按主机平台判定。** 引擎原来把全部规则跑在每台主机上，Linux
+  主机被 36 条 Windows 规则（on_missing=fail）判 fail，干净的 Ubuntu 只有
+  70 分出头。现在读上报里的 `host.os.*` 判平台，只跑本平台规则；上报里没有
+  os 字段（老 Agent）时保持旧行为。
+- **告警摄取冷启动窗口可配。** 新增 `RST_ALERT_INGEST_LOOKBACK`（如 `7d`），
+  第一次拉取时回溯多久；默认仍是 `1h`。之前对已有几周检测告警的索引开摄取，
+  只能拿到最近一小时。
+- **在线更新第一次真正能从交付镜像跑通。** 网关侧下载器用的是 `requests`，
+  而交付镜像里只有 `httpx`——从任何交付包出发，「下载更新」都会 500
+  `No module named 'requests'`（7 月的验证用的是本机构建镜像，没暴露）。
+  改用 httpx。**注意：装着 ≤1.1.23 的现场拿不到这次更新的在线推送，
+  这一版要用离线包升级；之后的版本才能走在线通道。**
+- **`./release` 暂存目录权限。** compose 首次启动把它建成 root:root 755，
+  网关以 uid 10001 跑，下载到暂存时 PermissionError。现在容器入口和
+  `/app/state` 一样接管它的属主。`rst-update.sh` 在目录不可写时明确提示
+  用 sudo，而不是误报「另一个更新在跑」。
+- `deploy/rst-update.sh` 的 `COMPOSE_FILE` 支持 docker 自己的冒号写法
+  （`docker-compose.prod.yml:my-overlay.yml`），带覆盖层的部署也能走在线更新。
+
+---
+
 ## 1.1.23 — 2026-09-16
 
 Login page only. No gateway behaviour changes.

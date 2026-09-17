@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -59,6 +60,21 @@ def summary_concurrency() -> int:
     except (TypeError, ValueError):
         return 4
     return v if 1 <= v <= 32 else 4
+
+
+def _cold_start_gte() -> str:
+    """Lower bound for the very first tick (no cursor yet). Default = last hour.
+
+    RST_ALERT_INGEST_LOOKBACK (e.g. ``24h``, ``7d``) widens it: a site that
+    turns ingest on with weeks of existing detections wants them, and a demo
+    seeded with a day-old attack chain never showed a single alert because the
+    seeds sat outside the fixed hour. Only ever consulted on cold start."""
+    raw = os.environ.get("RST_ALERT_INGEST_LOOKBACK", "").strip()
+    if raw and re.fullmatch(r"\d+[smhdw]", raw):
+        return f"now-{raw}"
+    if raw:
+        logger.warning("alert_ingest_lookback_invalid", extra={"value": raw})
+    return "now-1h"
 
 
 def summary_budget_s() -> float:
@@ -188,7 +204,7 @@ async def tick() -> int:
         logger.warning("ingest_cursor_unavailable", extra={"error": str(e)})
         return 0
 
-    gte = cursor or "now-1h"  # cold start: last hour, then advance from cursor
+    gte = cursor or _cold_start_gte()  # cold start window, then advance from cursor
     es = get_es()
     new_count = 0
     max_ts = cursor

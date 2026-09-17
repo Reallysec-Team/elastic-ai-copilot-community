@@ -157,7 +157,18 @@ async def run_baseline(run_id: str, hosts: list[str] | None = None,
                 logger.warning("baseline_host_last_seen_failed",
                                extra={"host": host, "error": str(e)})
 
-        for rule in rules:
+        # 只跑这台主机所属平台的规则。原来 Linux 主机也被拿 Windows 规则判，
+        # on_missing=fail 的那 36 条全线 fail，一台干净的 Ubuntu 得分 70 出头。
+        # 上报里没有 host.os.*（老 Agent / 自造数据）→ 不知道平台 → 保持旧行为全跑。
+        try:
+            host_platform = await result_reader.host_platform(host)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("baseline_host_platform_failed", extra={"host": host, "error": str(e)})
+            host_platform = None
+        host_rules = [r for r in rules
+                      if not host_platform or not r.platform or r.platform == host_platform]
+
+        for rule in host_rules:
             if host_stale:
                 verdict = VERDICT_STALE
                 actual = _stale_actual("主机", host_last_seen,

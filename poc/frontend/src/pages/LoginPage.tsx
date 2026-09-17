@@ -39,8 +39,8 @@ import {
  */
 
 
-// Registered legal entity — not translated, and not part of the copy table for that reason.
-const COPYRIGHT_HOLDER = '安徽斯普朗克信息技术有限公司'
+// Registered legal entity, one form per UI language. Not in the copy table: it is a name, not copy.
+const COPYRIGHT_HOLDER = { zh: '安徽斯普朗克信息技术有限公司', en: 'Anhui Reallysec Information Technology Ltd.' } as const
 
 
 
@@ -217,7 +217,7 @@ export default function LoginPage() {
 
       {/* auth-4 的页脚导航槽位 —— 换成法人实体版权行。 */}
       <footer className="relative z-10 flex flex-col items-center gap-6 px-6 py-8 text-xs text-muted-foreground sm:px-8 sm:py-10">
-        Copyright © {new Date().getFullYear()} {COPYRIGHT_HOLDER}
+        Copyright © {new Date().getFullYear()} {COPYRIGHT_HOLDER[lang]}
       </footer>
 
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>

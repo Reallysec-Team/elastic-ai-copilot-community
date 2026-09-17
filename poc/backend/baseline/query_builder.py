@@ -71,3 +71,17 @@ def build_host_last_seen_query(host: str, fm: FieldMap) -> dict[str, Any]:
         "query": {"bool": {"filter": [{"term": {fm.host_field: host}}]}},
         "aggs": {"last_seen": {"max": {"field": TIME_FIELD}}},
     }
+
+
+# 主机平台来源字段：Osquery Manager / Fleet 上报里 host.os.* 由 Agent 填。任一条命中即可。
+HOST_OS_FIELDS = ("host.os.platform", "host.os.family", "host.os.type", "host.os.name")
+
+
+def build_host_platform_query(host: str, fm: FieldMap) -> dict[str, Any]:
+    """取该主机最近一条上报的 host.os.*，用来判定它是 linux 还是 windows。"""
+    return {
+        "size": 1,
+        "query": {"bool": {"filter": [{"term": {fm.host_field: host}}]}},
+        "sort": [{TIME_FIELD: {"order": "desc"}}],
+        "_source": list(HOST_OS_FIELDS),
+    }

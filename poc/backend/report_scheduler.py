@@ -62,6 +62,46 @@ def _index_name() -> str:
     return os.environ.get("RST_REPORT_INDEX", DEFAULT_INDEX).strip() or DEFAULT_INDEX
 
 
+# 显式映射。没有它，第一份日报把 boundary_key="2026-09-17" 动态映射成 date，
+# 接着周报的 "2026-W38" 写入就是 400 —— 任何 daily+weekly 一起开的部署都会
+# 在第一个周期把周报丢掉（2026-09-17 演示机上真发生了）。markdown 正文不需要
+# 被检索，关掉索引省一份倒排。
+_INDEX_MAPPING = {
+    "mappings": {
+        "properties": {
+            "period": {"type": "keyword"},
+            "boundary_key": {"type": "keyword"},
+            "status": {"type": "keyword"},
+            "claimed_at": {"type": "date"},
+            "generated_at": {"type": "date"},
+            "start_at": {"type": "date"},
+            "end_at": {"type": "date"},
+            "license_status": {"type": "keyword"},
+            "markdown": {"type": "text", "index": False},
+        }
+    }
+}
+
+_index_ready = False
+
+
+async def _ensure_index(es) -> None:
+    """Create the archive index with the explicit mapping; idempotent. An
+    existing index (even one built by dynamic mapping) is left alone."""
+    global _index_ready
+    if _index_ready:
+        return
+    try:
+        if not await es.indices.exists(index=_index_name()):
+            await es.indices.create(index=_index_name(), body=_INDEX_MAPPING)
+    except Exception as e:  # noqa: BLE001
+        msg = str(e)
+        if "resource_already_exists_exception" not in msg:
+            logger.warning("report_index_ensure_failed", extra={"error": msg[:200]})
+            return
+    _index_ready = True
+
+
 def _check_interval() -> float:
     try:
         v = float(os.environ.get("RST_REPORT_CHECK_INTERVAL_SECONDS", "1800"))
@@ -343,6 +383,7 @@ async def _claim(period: str, key: str) -> str | None:
         "generated_at": now.isoformat(),
     }
     es = get_es()
+    await _ensure_index(es)
     try:
         await es.index(
             index=_index_name(),
@@ -461,6 +502,7 @@ async def _fire(period: str, key: str, window_end: datetime | None = None) -> bo
     if _persist_enabled():
         try:
             es = get_es()
+            await _ensure_index(es)
             await es.index(
                 index=_index_name(),
                 id=f"{period}-{key}",  # idempotent per boundary

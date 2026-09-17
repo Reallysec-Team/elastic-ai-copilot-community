@@ -31,10 +31,15 @@ _RULES = [
 ]
 
 
-def _install(monkeypatch, rows_map, hosts=("web01",), last_seen=_NOW, collected=_NOW):
-    """last_seen / collected 默认与 _NOW 同刻 —— 数据新鲜，走正常判定路径。"""
+def _install(monkeypatch, rows_map, hosts=("web01",), last_seen=_NOW, collected=_NOW,
+             platforms=None):
+    """last_seen / collected 默认与 _NOW 同刻 —— 数据新鲜，走正常判定路径。
+    platforms：host → "linux"/"windows"；缺省 None = 上报里没有 host.os.*，全规则都跑。"""
     async def _load_rules():
         return list(_RULES)
+
+    async def _host_platform(host):
+        return (platforms or {}).get(host)
 
     async def _list_hosts():
         return list(hosts)
@@ -59,6 +64,7 @@ def _install(monkeypatch, rows_map, hosts=("web01",), last_seen=_NOW, collected=
     monkeypatch.setattr(engine.result_reader, "list_hosts", _list_hosts)
     monkeypatch.setattr(engine.result_reader, "fetch_latest", _fetch_latest)
     monkeypatch.setattr(engine.result_reader, "host_last_seen", _host_last_seen)
+    monkeypatch.setattr(engine.result_reader, "host_platform", _host_platform)
     return written
 
 
@@ -255,3 +261,33 @@ def _asyncval(v):
     async def _f():
         return v
     return _f()
+
+
+_WIN_RULE = Rule.from_dict({
+    "rule_id": "NB-WIN-001", "title": "来宾账户禁用", "category": "账户", "platform": "windows",
+    "severity": "medium", "collect": {"query": "SELECT ..."},
+    "judge": {"operator": "equals", "field": "data", "expected": "1", "on_missing": "fail"},
+    "remediation_template": "net user guest /active:no",
+})
+
+
+def test_rules_of_other_platform_are_skipped_when_platform_known(monkeypatch):
+    """Linux 主机不该被 Windows 规则判 fail（on_missing=fail 曾让干净主机全线失分）。"""
+    written = _install(monkeypatch, {("web01", "HB-NET-003"): [{"current_value": "0"}]},
+                       platforms={"web01": "linux"})
+    monkeypatch.setattr(engine.store, "load_enabled_rules",
+                        lambda: _asyncval(list(_RULES) + [_WIN_RULE]))
+    asyncio.run(engine.run_baseline("run-p1"))
+    ids = {r.rule_id for r in written["results"]}
+    assert "NB-WIN-001" not in ids
+    assert ids == {"HB-ACC-001", "HB-NET-003"}
+    assert written["run"]["fail"] == 0
+
+
+def test_all_rules_run_when_platform_unknown(monkeypatch):
+    """没有 host.os.* 的上报 → 平台未知 → 保持旧行为，什么都不跳。"""
+    written = _install(monkeypatch, {})
+    monkeypatch.setattr(engine.store, "load_enabled_rules",
+                        lambda: _asyncval(list(_RULES) + [_WIN_RULE]))
+    asyncio.run(engine.run_baseline("run-p2"))
+    assert "NB-WIN-001" in {r.rule_id for r in written["results"]}

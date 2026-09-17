@@ -120,8 +120,8 @@ def report_release_verify_failed(reason: str, version: Optional[str] = None) -> 
     if not _license_id:
         return
     try:
-        import requests
-        requests.post(
+        import httpx  # requests is not in the shipped image
+        httpx.post(
             f"{_license_server_url()}/v1/release/verify-failed",
             json={"license_id": _license_id, "app_id": PRODUCT_ID,
                   "reason": (reason or "")[:500], "version": version or ""},

@@ -23,7 +23,11 @@ if [ "$(id -u)" != "0" ]; then
     exec "$@"          # compose already pinned a uid — nothing to drop
 fi
 
-for d in /app/state /app/eval; do
+# /app/release is the host-shared staging dir for online updates. Compose
+# creates the bind source as root:root 755 when it does not exist, so without
+# this the downloader (uid 10001) fails with PermissionError on every customer
+# host — found on the 2026-09-17 demo box.
+for d in /app/state /app/eval /app/release; do
     [ -d "$d" ] || mkdir -p "$d" || true
     if [ "$(stat -c %u "$d" 2>/dev/null)" != "$RST_UID" ]; then
         chown -R "$RST_UID:$RST_GID" "$d" 2>/dev/null || true

@@ -132,3 +132,26 @@ async def list_hosts() -> list[str]:
     resp = await execute_search(result_index(), dsl)
     buckets = (((resp or {}).get("aggregations") or {}).get("hosts") or {}).get("buckets") or []
     return [b["key"] for b in buckets if b.get("key")]
+
+
+def platform_of(source: dict[str, Any]) -> str | None:
+    """host.os.* → "windows" / "linux"；没有任何 os 字段 → None（不知道）。
+
+    Windows 只要任一字段带 windows；其余（ubuntu / centos / rhel / debian / linux …）
+    一律 linux —— 规则库只分这两类。"""
+    os_ = (source.get("host") or {}).get("os") or {}
+    vals = [str(os_.get(k) or "").lower() for k in ("platform", "family", "type", "name")]
+    if not any(vals):
+        return None
+    return "windows" if any("windows" in v for v in vals) else "linux"
+
+
+async def host_platform(host: str) -> str | None:
+    """该主机是 linux 还是 windows；上报里没有 host.os.* → None。"""
+    fm = await get_field_map()
+    dsl = query_builder.build_host_platform_query(host, fm)
+    resp = await execute_search(result_index(), dsl)
+    hits = ((resp or {}).get("hits") or {}).get("hits") or []
+    if not hits:
+        return None
+    return platform_of(hits[0].get("_source") or {})

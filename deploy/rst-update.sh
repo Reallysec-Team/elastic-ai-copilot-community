@@ -78,6 +78,9 @@ json_num() { # json_num <file> <key>
 
 lock() {
   if ! mkdir "$LOCKDIR" 2>/dev/null; then
+    # EEXIST = a real lock. Anything else is "cannot write $RELEASE_DIR": the
+    # gateway (uid 10001) owns it, so an unprivileged operator lands here.
+    [ -d "$LOCKDIR" ] || die "cannot create $LOCKDIR — $RELEASE_DIR is not writable by $(id -un); run with sudo"
     die "another rst-update is running (lock $LOCKDIR held); aborting"
   fi
   trap 'rmdir "$LOCKDIR" 2>/dev/null || true' EXIT
@@ -100,17 +103,30 @@ env_set_tag() { # env_set_tag <tag>
   fi
 }
 
-compose_up() { $COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d "$SERVICE"; }
+# COMPOSE_FILE follows docker's own convention: several files joined with ':'
+# (an overlay on top of docker-compose.prod.yml, e.g. bundled ES for a demo).
+# A single -f "$COMPOSE_FILE" would hand compose the literal "a.yml:b.yml".
+compose_files() {
+  local IFS=':' f
+  for f in $COMPOSE_FILE; do printf -- '-f\n%s\n' "$f"; done
+}
+compose_cmd() {
+  local -a args=()
+  while IFS= read -r line; do args+=("$line"); done < <(compose_files)
+  $COMPOSE "${args[@]}" --env-file "$ENV_FILE" "$@"
+}
+
+compose_up() { compose_cmd up -d "$SERVICE"; }
 
 container_healthy() {
   # The gateway image declares a HEALTHCHECK, so docker already knows. This
   # needs no published port, which is what makes it the right default here.
   local st
-  st="$($COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps -q "$SERVICE" 2>/dev/null \
+  st="$(compose_cmd ps -q "$SERVICE" 2>/dev/null \
         | head -1 | xargs -r $DOCKER inspect --format '{{.State.Health.Status}}' 2>/dev/null)"
   if [ -z "$st" ]; then
     # No healthcheck defined (older image): fall back to "running".
-    st="$($COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps -q "$SERVICE" 2>/dev/null \
+    st="$(compose_cmd ps -q "$SERVICE" 2>/dev/null \
           | head -1 | xargs -r $DOCKER inspect --format '{{.State.Status}}' 2>/dev/null)"
     [ "$st" = "running" ] && return 0 || return 1
   fi

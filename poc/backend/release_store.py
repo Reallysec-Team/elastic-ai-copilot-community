@@ -137,20 +137,24 @@ def verify_manifest(token: str) -> dict[str, Any]:
 # ── download + stage ─────────────────────────────────────────────────────────
 
 def _default_fetch_text(url: str) -> str:
-    import requests  # local import: keep the module importable without requests
-    r = requests.get(url, timeout=30)
+    # httpx, not requests: requests is not in the shipped image (requirements.lock
+    # has httpx only), so every customer that reached this point got
+    # "No module named 'requests'" and online update never worked from a
+    # delivered bundle — caught on the 2026-09-17 demo box.
+    import httpx
+    r = httpx.get(url, timeout=30, follow_redirects=True)
     r.raise_for_status()
     return r.text
 
 
 def _default_download_to(url: str, dest: Path) -> str:
     """Stream url -> dest while hashing; return the sha256 hex actually written."""
-    import requests
+    import httpx
     h = hashlib.sha256()
-    with requests.get(url, stream=True, timeout=300) as r:
+    with httpx.stream("GET", url, timeout=300, follow_redirects=True) as r:
         r.raise_for_status()
         with open(dest, "wb") as fh:
-            for chunk in r.iter_content(chunk_size=1024 * 1024):
+            for chunk in r.iter_bytes(chunk_size=1024 * 1024):
                 if chunk:
                     fh.write(chunk)
                     h.update(chunk)
