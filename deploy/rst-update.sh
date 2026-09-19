@@ -95,9 +95,11 @@ env_set_tag() { # env_set_tag <tag>
   touch "$ENV_FILE"
   if grep -q "^$TAG_VAR=" "$ENV_FILE"; then
     # in-place replace the one line; portable (no sed -i quirks across platforms)
+    # Write in place (not mv): this runs under sudo, and a mv would leave .env
+    # root-owned with the operator's own `docker compose` unable to read it.
     local tmp; tmp="$(mktemp)"
     sed "s|^$TAG_VAR=.*|$TAG_VAR=$1|" "$ENV_FILE" > "$tmp"
-    mv "$tmp" "$ENV_FILE"
+    cat "$tmp" > "$ENV_FILE" && rm -f "$tmp"
   else
     printf '%s=%s\n' "$TAG_VAR" "$1" >> "$ENV_FILE"
   fi

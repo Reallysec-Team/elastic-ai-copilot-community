@@ -460,6 +460,27 @@ start_stack() {
     [ "$ELK_CHOICE"  = '2' ] && profiles=(--profile bundled-elk)
   fi
 
+  # Every image the compose file starts must already be on this host. Up to
+  # 1.1.24 the bundle lacked postgres:16-alpine, so `compose up` went to Docker
+  # Hub and an air-gapped customer got "registry-1.docker.io: i/o timeout"
+  # with no hint of why. Check first, and say exactly which image is missing.
+  local -a missing=()
+  local img
+  while IFS= read -r img; do
+    [ -n "$img" ] || continue
+    docker image inspect "$img" >/dev/null 2>&1 || missing+=("$img")
+  done < <(docker compose -f "$compose_file" "${profiles[@]}" config --images 2>/dev/null)
+  if [ "${#missing[@]}" -gt 0 ]; then
+    warn "以下镜像本机没有: ${missing[*]}"
+    say "  离线环境:这是交付包缺镜像,请索取包含全部镜像的交付包(1.1.25 起已包含)。"
+    say "  在线环境:可以现在从镜像仓库拉取。"
+    if ask_yn "现在在线拉取缺失镜像?" "N"; then
+      for img in "${missing[@]}"; do docker pull "$img" || fail "镜像拉取失败: $img"; done
+    else
+      fail "缺少镜像,中止。离线主机可在有网的机器上 docker pull 后 docker save,再在本机 docker load。"
+    fi
+  fi
+
   # existing containers?
   local existing_n
   existing_n=$(docker compose -f "$compose_file" "${profiles[@]}" ps -q 2>/dev/null | grep -c . || true)

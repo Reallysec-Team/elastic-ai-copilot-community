@@ -38,7 +38,7 @@ services:
     # Tag is installer-managed: rst-update.sh writes GATEWAY_IMAGE_TAG into .env
     # on a health-gated release install / rollback (P4). Default preserves the
     # pre-P4 behaviour when the var is unset.
-    image: rst-elastic-ai-copilot-gateway:${GATEWAY_IMAGE_TAG:-1.1.24}
+    image: rst-elastic-ai-copilot-gateway:${GATEWAY_IMAGE_TAG:-1.1.25}
     container_name: rst-elastic-ai-copilot-gateway
     restart: unless-stopped
     # Resource ceiling so one runaway request / memory leak can't starve the
@@ -140,7 +140,7 @@ services:
       # Current running version — the heartbeat sends it, and the server only
       # offers a release/content pack newer than this. Keep in lockstep with
       # GATEWAY_IMAGE_TAG (rst-update.sh bumps the tag on install).
-      - APP_VERSION=${APP_VERSION:-${GATEWAY_IMAGE_TAG:-1.1.24}}
+      - APP_VERSION=${APP_VERSION:-${GATEWAY_IMAGE_TAG:-1.1.25}}
       # Vendor content/release signing PUBLIC key — content packs + online releases
       # verify against it fail-closed. OPTIONAL: leave unset and verification falls
       # back to the built-in license public key (fine until you ship dedicated-key

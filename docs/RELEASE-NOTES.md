@@ -6,6 +6,27 @@ delivery archive is named after.
 
 ---
 
+## 1.1.25 — 2026-09-19
+
+Packaging fix for offline installation. No gateway behaviour changes.
+
+### 修复
+
+- **离线安装第一次真正可用。** 交付包的镜像 tar 只有网关和 caddy，没有
+  `docker-compose.prod.yml` 常驻的 `userdb`（`postgres:16-alpine`）。离线主机
+  `compose up` 时去 Docker Hub 拉取，报 `registry-1.docker.io: i/o timeout`
+  （2026-09-19 客户现场）。现在镜像清单从 compose 文件读取，postgres 随包
+  交付；`bundled-elk` 变体同样包含。
+- `deploy.sh` 启动前校验 compose 需要的每个镜像是否已在本机。缺失时列出
+  镜像名并说明离线与在线两种处理，不再把错误留给 docker 报。
+
+### 升级须知
+
+- 1.1.24 及之前的现场，如果 `userdb` 曾经拉取成功过，本机已有 postgres 镜像，
+  升级不受影响。从未装成功的离线主机直接用 1.1.25 交付包重装。
+
+---
+
 ## 1.1.24 — 2026-09-17
 
 Four fixes found while standing up the public demo (aisoc.reallysec.com).
