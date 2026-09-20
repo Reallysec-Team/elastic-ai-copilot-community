@@ -31,12 +31,14 @@ import asyncio
 import json
 import logging
 import os
+import re
+from copy import deepcopy
 from typing import Any
 
 from . import index_whitelist
 from .enrich.prompt_context import asset_context_block
 from .es_client import execute_search, friendly_es_error
-from .field_masking import mask_aggregations, mask_doc
+from .field_masking import _mask_ip, current_mode, mask_aggregations, mask_doc
 from .investigate import (
     ProgressCb,
     _degraded_result,
@@ -48,7 +50,7 @@ from .investigate import (
 )
 from .llm import parse_json
 from .llm_router import get_router
-from . import feature_unlock
+from . import feature_unlock, llm_reasoning
 from .prompts import agentic_investigate_system_prompt, build_agentic_investigate_prompt
 from .validator import apply_default_sort, validate_dsl
 
@@ -208,7 +210,80 @@ def _parse_tool_args(raw: str) -> Any:
     return None
 
 
-async def _run_tool(tc: Any, wl: Any, size_cap: int) -> tuple[dict[str, Any], int]:
+_IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+# A masked IP placeholder filling a whole DSL value: '172.19.x.x' (cloud) / '172.19.170.x' (private).
+_MASKED_IP = re.compile(r"^(?:\d{1,3}\.\d{1,3}\.x\.x|\d{1,3}\.\d{1,3}\.\d{1,3}\.x)$")
+# Any residual masked placeholder left after resolution — masked IP tail or the *** token.
+_MASKED_RESIDUAL = re.compile(r"\d\.x\.x|\d{1,3}\.\d{1,3}\.\d{1,3}\.x|\*\*\*")
+_UNMASK_MAX_CANDIDATES = 8
+_UNMASK_ERR = (
+    "DSL 里用了脱敏占位值（含 x.x / ***）。脱敏值不能当过滤条件，否则查不到数据："
+    "证据里出现过的 IP 可原样写进 term/terms（服务端会还原真实值）；"
+    "其它请改用未脱敏字段（规则名 / 类别 / 时间范围 / 文档 _id）过滤。"
+)
+
+
+def _iter_strings(node: Any):
+    """Every string leaf in a nested dict/list — REAL rows to learn from, or DSL to scan."""
+    if isinstance(node, str):
+        yield node
+    elif isinstance(node, dict):
+        for v in node.values():
+            yield from _iter_strings(v)
+    elif isinstance(node, list):
+        for v in node:
+            yield from _iter_strings(v)
+
+
+def _learn_ips(hits: list[dict[str, Any]], unmask: dict[str, set[str]]) -> None:
+    """Remember masked → real for every IPv4 in REAL hits, so the model's pivot on a
+    masked IP it saw in evidence can be resolved server-side (model never sees this)."""
+    mode = current_mode()
+    for h in hits:
+        for s in _iter_strings(h.get("_source", h)):
+            for ip in _IPV4.findall(s):
+                m = _mask_ip(ip, mode)
+                if m != ip:
+                    unmask.setdefault(m, set()).add(ip)
+
+
+def _resolve_masked(
+    dsl: dict[str, Any], unmask: dict[str, set[str]]
+) -> tuple[dict[str, Any], str | None]:
+    """Rewrite masked IP literals in the DSL back to the real values seen in evidence.
+    Unique → substitution anywhere; ambiguous `{"term": {f: mask}}` → `{"terms": {f: [reals]}}`
+    (≤8 candidates); unseen / too-many → left masked and refused. Returns (dsl, error)."""
+    def _rw(node: Any) -> Any:
+        if isinstance(node, dict):
+            # `{"term": {field: 'mask'}}` with several candidates → promote to a terms list.
+            if set(node) == {"term"} and isinstance(node["term"], dict) and len(node["term"]) == 1:
+                (field, val), = node["term"].items()
+                if isinstance(val, str) and _MASKED_IP.match(val):
+                    reals = sorted(unmask.get(val) or ())
+                    if len(reals) == 1:
+                        return {"term": {field: reals[0]}}
+                    if 1 < len(reals) <= _UNMASK_MAX_CANDIDATES:
+                        return {"terms": {field: reals}}
+            return {k: _rw(v) for k, v in node.items()}
+        if isinstance(node, list):
+            return [_rw(v) for v in node]
+        if isinstance(node, str) and _MASKED_IP.match(node):
+            reals = sorted(unmask.get(node) or ())
+            if len(reals) == 1:  # unique → plain substitution, anywhere in the DSL
+                return reals[0]
+        # ponytail: ambiguous masks outside the bare `term` shape stay masked → refused
+        # below, same as QAC (only `col = 'mask'` expands to IN). Promote elsewhere if needed.
+        return node
+
+    resolved = _rw(deepcopy(dsl))
+    if any(_MASKED_RESIDUAL.search(s) for s in _iter_strings(resolved)):
+        return resolved, _UNMASK_ERR
+    return resolved, None
+
+
+async def _run_tool(
+    tc: Any, wl: Any, size_cap: int, unmask: dict[str, set[str]] | None = None
+) -> tuple[dict[str, Any], int]:
     """Execute one model tool call under all guardrails. Returns (tool_output,
     hits_returned). Errors are returned AS DATA (not raised) so the model can
     read the failure and adjust — a bad query shouldn't abort the investigation."""
@@ -242,6 +317,13 @@ async def _run_tool(tc: Any, wl: Any, size_cap: int) -> tuple[dict[str, Any], in
     if not isinstance(size, int) or size <= 0 or size > size_cap:
         dsl = {**dsl, "size": size_cap}
 
+    # A masked value ('172.19.x.x', 's***p') copied out of the evidence into a filter
+    # matches nothing in cloud/private masking. Resolve IPs we have seen the real value
+    # of; otherwise refuse with guidance, don't waste the round.
+    dsl, err = _resolve_masked(dsl, unmask or {})
+    if err:
+        return {"error": err}, 0
+
     try:
         validate_dsl(dsl)
     except ValueError as e:
@@ -255,6 +337,8 @@ async def _run_tool(tc: Any, wl: Any, size_cap: int) -> tuple[dict[str, Any], in
 
     hits = ((body.get("hits") or {}).get("hits")) or []
     hits = hits[:size_cap]
+    if unmask is not None:
+        _learn_ips(hits, unmask)  # learn from REAL hits before masking
     masked = [
         {"_id": h.get("_id"), "_source": mask_doc(h.get("_source", {}))}
         for h in hits
@@ -305,6 +389,7 @@ async def agentic_investigate_alert(
     window_minutes: int = 30,
     max_steps: int | None = None,
     progress: ProgressCb = None,
+    reasoning: str | None = None,
 ) -> dict[str, Any]:
     """Investigate an alert via an LLM-driven es_search tool loop.
 
@@ -318,10 +403,10 @@ async def agentic_investigate_alert(
     """
     deadline = _deadline_s()
     if deadline <= 0:
-        return await _investigate_loop(alert, index, window_minutes, max_steps, progress)
+        return await _investigate_loop(alert, index, window_minutes, max_steps, progress, reasoning)
     try:
         return await asyncio.wait_for(
-            _investigate_loop(alert, index, window_minutes, max_steps, progress),
+            _investigate_loop(alert, index, window_minutes, max_steps, progress, reasoning),
             timeout=deadline,
         )
     except (asyncio.TimeoutError, TimeoutError):
@@ -337,6 +422,7 @@ async def _investigate_loop(
     window_minutes: int,
     max_steps: int | None,
     progress: ProgressCb = None,
+    reasoning: str | None = None,
 ) -> dict[str, Any]:
     steps_budget = max_steps if max_steps is not None else _max_steps()
     size_cap = _size_cap()
@@ -379,7 +465,9 @@ async def _investigate_loop(
     except Exception as e:  # noqa: BLE001 — seeding is best-effort
         logger.debug("agentic seed context failed (%s); starting cold", e)
         seed = []
+    unmask: dict[str, set[str]] = {}  # masked IP → real IPs seen in evidence (server-side only)
     if seed:
+        _learn_ips(seed, unmask)
         masked_seed = [
             {"_id": h.get("_id"), "_source": mask_doc(h.get("_source", {}))} for h in seed
         ]
@@ -391,8 +479,9 @@ async def _investigate_loop(
             f"\n\n初始证据（已按主体+时间窗预取真实命中，共 {len(masked_seed)} 条，"
             f"实体值已脱敏）：\n{seed_json}\n"
             "以上是围绕本告警主体在时间窗内的真实日志。若已足够可直接给出结论；"
-            "如需补充再调用 es_search。注意：文档里的实体值（IP/主机名/账号等）是脱敏占位，"
-            "不要把它们当作 es_search 的过滤值，否则查不到数据。"
+            "如需补充再调用 es_search。注意：文档里的实体值（IP/主机名/账号等）是脱敏占位；"
+            "证据里出现过的 IP 可原样写进 term/terms 过滤（如 source.ip='10.10.x.x'，服务端会还原成真实值），"
+            "其它脱敏值不能当过滤值，否则查不到数据。"
         )
         await emit_stage(
             progress, "retrieve", "检索证据", "active", f"预取初始证据 {len(masked_seed)} 条"
@@ -405,7 +494,8 @@ async def _investigate_loop(
                 tools=[_core()["ES_SEARCH_TOOL"]],
                 tool_choice="auto",
                 temperature=0,
-                reasoning="high",  # agentic 调查回合
+                # agentic 调查回合：选下一步查什么，不用长链推理；用户开关可覆盖
+                reasoning=llm_reasoning.from_request(reasoning, "low"),
             )
         except Exception as e:  # noqa: BLE001
             if step == 0:
@@ -435,7 +525,7 @@ async def _investigate_loop(
 
         messages.append(_assistant_msg(msg))
         for tc in tool_calls:
-            out, n = await _run_tool(tc, wl, size_cap)
+            out, n = await _run_tool(tc, wl, size_cap, unmask)
             hits_seen += n
             trace.append({
                 "tool": _tc_name(tc),
@@ -475,7 +565,7 @@ async def _investigate_loop(
             tools=[_core()["ES_SEARCH_TOOL"]],
             tool_choice="none",
             temperature=0,
-            reasoning="high",  # agentic 收尾
+            reasoning=llm_reasoning.from_request(reasoning, "high"),  # agentic 收尾
         )
     except Exception as e:  # noqa: BLE001
         logger.warning("agentic forced-final call failed (%s); degrading", e)

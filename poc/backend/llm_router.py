@@ -108,6 +108,10 @@ class LLMRouter:
                 api_key=p.api_key,
                 base_url=p.base_url,
                 timeout=p.timeout_s,
+                # SDK 默认 max_retries=2：一次 timeout_s 超时会再原样重试两次，
+                # 分诊 / 调查撞超时前要等 3×timeout_s。失败换 provider 由路由层
+                # 做（failover），SDK 层不重试。
+                max_retries=0,
             )
         if p.kind == "azure":
             # Azure routes by deployment, not model name — but the deployment is
@@ -125,6 +129,7 @@ class LLMRouter:
                 azure_endpoint=p.base_url,
                 api_version=p.api_version,
                 timeout=p.timeout_s,
+                max_retries=0,
             )
         raise ValueError(
             f"unsupported provider kind '{p.kind}' (id={p.id}). "
@@ -164,7 +169,12 @@ class LLMRouter:
         extra = llm_reasoning.params_for(family, p.model, level)
         if not extra:
             return dict(kwargs), None
-        return llm_reasoning.merge_params(kwargs, extra), level
+        out = llm_reasoning.merge_params(kwargs, extra)
+        # 思考档单独一层超时：high 在 ark 上 60–130s 一次，provider 的 timeout_s
+        # 是按普通调用（NL→AQL 十几秒）定的，不能让一个值管两种活。
+        if level == "high" and "timeout" not in out:
+            out["timeout"] = max(p.timeout_s, _thinking_timeout_s())
+        return out, level
 
     @staticmethod
     def _is_bad_request(e: Exception) -> bool:
@@ -511,6 +521,14 @@ def load_router() -> LLMRouter:
 
 
 _router: LLMRouter | None = None
+
+
+def _thinking_timeout_s() -> float:
+    """reasoning=high 调用的超时下限（秒）。RST_LLM_THINKING_TIMEOUT_S，默认 600。"""
+    try:
+        return float(os.environ.get("RST_LLM_THINKING_TIMEOUT_S", "600") or "600")
+    except ValueError:
+        return 600.0
 
 
 def get_router() -> LLMRouter:

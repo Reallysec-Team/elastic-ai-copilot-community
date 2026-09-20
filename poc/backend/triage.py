@@ -9,7 +9,7 @@ import os
 from typing import Any
 
 
-from . import feature_unlock
+from . import feature_unlock, llm_reasoning
 from .es_client import get_es, es_api_error
 from .field_masking import mask_doc
 from .llm import parse_json
@@ -56,6 +56,7 @@ async def triage_alerts(
     query: dict[str, Any] | None = None,
     window_minutes: int = 60,
     max_alerts: int = 100,
+    reasoning: str | None = None,
     max_clusters_to_llm: int = 30,
 ) -> dict[str, Any]:
     """Triage a batch of pending alerts. Either pass `alerts` directly, or pass
@@ -129,7 +130,8 @@ async def triage_alerts(
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=0,
-                    reasoning="high",  # 告警分诊：付费引擎
+                    # 告警分诊：固定 JSON 评分格式，low 够用（high 在 ark 上 100s+）；用户开关可覆盖
+                    reasoning=llm_reasoning.from_request(reasoning, "low"),
                 )
             raw = resp.choices[0].message.content or ""
             try:

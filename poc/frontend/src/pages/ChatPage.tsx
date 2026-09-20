@@ -28,6 +28,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { AlertCircleIcon, Bookmark01Icon, CalendarClockIcon, ChevronDownIcon, ChevronRightIcon, ExternalLinkIcon, Layers01Icon, ListChecksIcon, Loading03Icon, PencilIcon, PlayIcon, RefreshCwIcon, SendIcon, SparklesIcon, ThumbsDownIcon, ThumbsUpIcon } from '@hugeicons/core-free-icons'
 import { toast } from 'sonner'
+import { ThinkingToggle, useThinking } from '@/components/ThinkingToggle'
 import { useGate } from '@/components/gated-button'
 import { api, type ApiError, type ExecuteResponse } from '@/lib/api'
 import { AiChat } from '@/components/blocks/ai-chat-1/components/ai-chat'
@@ -258,6 +259,7 @@ export function ChatPage() {
   // 空字符串 = 自动。首页不预选索引 —— 「查哪个索引」正是这个产品声称要替用户
   // 省掉的问题，预选一个只是把它换成「你确定要在这个索引里查吗」。
   const [index, setIndex] = useState('')
+  const thinking = useThinking()
   /* 界面上的时间范围。默认「全部时间」= 不传 = 后端什么都不改，所以不碰它的人
      感觉不到它存在。选了之后它覆盖问题里说的时间（见 backend/time_window.py），
      覆盖了什么会在结果上方那枚 chip 里写出来。 */
@@ -573,6 +575,7 @@ export function ChatPage() {
             ? `${question}\n\n[上一次执行该 DSL 报错，请据此修正后重新生成]:\n${opts.fixContext}`
             : question,
           conversation_id: conversationId,
+          reasoning: thinking,
           ...resolveRange(rangeRef.current),
         },
         {
@@ -1141,6 +1144,7 @@ export function ChatPage() {
               onChange={setTimeRange}
               className="h-8 border-0 bg-transparent shadow-none"
             />
+              <ThinkingToggle />
             </>
           }
           onSelectThread={(id) => void openThread(id)}

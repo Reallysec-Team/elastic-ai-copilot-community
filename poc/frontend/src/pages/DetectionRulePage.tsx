@@ -16,6 +16,7 @@ import {
   SparklesIcon,
 } from '@hugeicons/core-free-icons'
 import { toast } from 'sonner'
+import { ThinkingToggle, useThinking } from '@/components/ThinkingToggle'
 import { api, type ApiError } from '@/lib/api'
 import { useT, translate, type Translate } from '@/lib/i18n'
 import { commonCopy } from '@/locales/common'
@@ -98,6 +99,7 @@ const EXAMPLES: {
 
 export function DetectionRulePage() {
   const t = useT(detectionRuleCopy)
+  const thinking = useThinking()
   const [index, setIndex] = useState(cachedDefaultIndex())
   const [question, setQuestion] = useState('')
   const [hint, setHint] = useState<RuleHint>('auto')
@@ -137,6 +139,7 @@ export function DetectionRulePage() {
         index: index.trim(),
         question: question.trim(),
         rule_type_hint: hint === 'auto' ? undefined : hint,
+        reasoning: thinking,
       })
       setResult(r as DetectionRuleResult)
       setPhase('done')
@@ -326,6 +329,7 @@ function InputCard({
               </>
             )}
           </Button>
+          <ThinkingToggle />
         </div>
       </FramePanel>
     </Frame>

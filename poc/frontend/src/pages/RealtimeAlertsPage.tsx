@@ -19,6 +19,7 @@ import { toast } from 'sonner'
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { MixDonut, type DonutSlice } from '@/components/blocks/chart-13/components/mix-donut'
+import { ThinkingToggle } from '@/components/ThinkingToggle'
 import { TrendCard, type TrendStat } from '@/components/blocks/chart-18/components/trend-card'
 import { SummaryCards, type SummaryCardData } from '@/components/blocks/solution-agents-1/components/summary-cards'
 import { useT, translate } from '@/lib/i18n'
@@ -1665,6 +1666,7 @@ function AlertDetailSheet({
             >
               <HugeiconsIcon icon={SparklesIcon} strokeWidth={2} className="size-3.5" /> {t('investigate')}
             </Button>
+            <ThinkingToggle />
             <Button
               variant="outline" className="rounded-full"
               size="sm"

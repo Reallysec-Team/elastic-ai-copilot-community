@@ -51,18 +51,34 @@ def resolve(provider_mode: str, hint: str | None) -> str | None:
     return None
 
 
+def from_request(value: str | None, default: str | None) -> str | None:
+    """请求里的用户开关（"on" / "off" / None）→ 调用方意图。不传 = 这一步的默认档。"""
+    if value == "on":
+        return "high"
+    if value == "off":
+        return "none"
+    return default
+
+
 def detect_family(base_url: str, model: str, kind: str = "openai") -> str:
     """按 base_url / 模型名猜供应商家族。猜不出来 → unknown（不发任何参数）。"""
     u = (base_url or "").lower()
     m = (model or "").lower()
     if kind == "azure":
         return "openai"
-    if "volces.com" in u or "volcengine" in u or m.startswith(("doubao", "ark-")):
+    # 方舟（volces）上挂着第三方模型：kimi / glm / minimax 收到豆包的思考参数直接
+    # 400 InvalidParameter（2026-09-18 实测），所以家族按模型名定，base_url 只在
+    # 模型名认不出时兜底。
+    if m.startswith(("doubao", "ark-", "seed-")):
+        return "ark"
+    if m.startswith(("kimi", "glm", "minimax")):
+        return "unknown"
+    if "deepseek" in u or m.startswith("deepseek"):
+        return "deepseek"
+    if "volces.com" in u or "volcengine" in u:
         return "ark"
     if "dashscope" in u or "aliyuncs" in u or m.startswith(("qwen", "qwq")):
         return "dashscope"
-    if "deepseek" in u or m.startswith("deepseek"):
-        return "deepseek"
     if "anthropic" in u or m.startswith("claude"):
         return "anthropic"
     if "generativelanguage.googleapis" in u or m.startswith("gemini"):
@@ -79,11 +95,10 @@ def params_for(family: str, model: str, level: str) -> dict[str, Any]:
     按模型默认。"""
     m = (model or "").lower()
     if family == "ark":
-        # 豆包只有开 / 关。「low」的意思是「别多想」，二选一时落在关——开着就是
-        # 30 秒起步，NL→DSL 的准确率靠字段样本和示例撑，不靠长链推理（eval 见提交记录）。
-        if level == "high":
-            return {"extra_body": {"thinking": {"type": "enabled"}}}
-        return {"extra_body": {"thinking": {"type": "disabled"}}}
+        # 方舟认 reasoning_effort（2026-09-18 实测同一研判提示，ark-code-latest：
+        # minimal 5.3s / low 8.4s / medium 9.6s / 不传 52s / thinking enabled 70s；
+        # `thinking.type=auto` 400）。low 仍有少量推理增量，够 JSON 格式任务用。
+        return {"reasoning_effort": {"none": "minimal", "low": "low", "high": "high"}[level]}
     if family == "openai":
         if not _OPENAI_REASONING_MODEL.match(m):
             return {}

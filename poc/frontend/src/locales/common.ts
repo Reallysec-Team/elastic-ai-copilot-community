@@ -66,6 +66,10 @@ export type CommonKey =
   | 'adminOnlyViewHint'
   // 塞进 pill / 徽标那种只有几个字的位置
   | 'adminOnlyShort'
+  // 「深度思考」开关（components/ThinkingToggle.tsx）：智能查询 / 研判 / 规则 / 调查共用
+  | 'thinkingToggle'
+  | 'thinkingOnHint'
+  | 'thinkingOffHint'
 
 export const commonCopy = {
   zh: {
@@ -120,6 +124,9 @@ export const commonCopy = {
     adminOnlyView: '这些内容只有管理员看得到',
     adminOnlyViewHint: '当前账号不是管理员，所以这里没有内容可显示。需要的话，请管理员为你开通。',
     adminOnlyShort: '仅管理员可见',
+    thinkingToggle: '深度思考',
+    thinkingOnHint: '已开启：模型充分推理后再作答，更准，但可能要等 1–2 分钟',
+    thinkingOffHint: '已关闭：不推理，几秒出结果。复杂问题可开启',
     no: '否',
   },
   en: {
@@ -175,6 +182,9 @@ export const commonCopy = {
     adminOnlyViewHint:
       'This account is not an administrator, so there is nothing to show here. Ask an administrator if you need access.',
     adminOnlyShort: 'Admin only',
+    thinkingToggle: 'Deep thinking',
+    thinkingOnHint: 'On: the model reasons before answering — more accurate, may take 1–2 minutes',
+    thinkingOffHint: 'Off: no reasoning, answers in seconds. Turn on for hard questions',
     no: 'No',
   },
 } satisfies Bundle<CommonKey>

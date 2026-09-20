@@ -60,9 +60,17 @@
 | 客户 Elasticsearch | 9200 / 9243 | 查询 / 审计 / 知识库 | ✅ |
 | 客户 Kibana | 5601 | “在 Kibana 中打开”深链 | 可选 |
 
-**DNS / 主机名（重要）**：`CADDY_SITE_ADDRESS` 用**域名**,别用裸 IP —— IP 字面量作
-TLS SNI 不合规,部分客户端 HTTPS 握手会失败。无内网 DNS 时,给分析师主机加一条
-hosts 记录 `<主机IP> copilot.corp.local` 即可。
+**站点地址（域名或 IP）**：`CADDY_SITE_ADDRESS` 填分析师访问用的域名或 IP。
+
+用**裸 IP**（如 `https://10.250.1.82/v2/`）也能用：浏览器直连 IP 字面量按 RFC 6066
+不发 SNI，Caddy 靠全局 `default_sni` 兜底取证书（`CADDY_DEFAULT_SNI` 缺省回退到站点
+地址）。deploy.sh 会自动写好；手工编辑 .env 时，`CADDY_SITE_ADDRESS` 若填了多个
+空格分隔的地址，须另外把 `CADDY_DEFAULT_SNI` 设为其中一个（`default_sni` 只接受单值）。
+
+自签名内部 CA 下，浏览器首次访问 IP 仍会弹证书警告，需分发根证书或手动信任。
+
+长期推荐用**内网域名** + `CADDY_SITE_ADDRESS` 配域名：浏览器正常发 SNI，日后换受信
+任证书也顺。无内网 DNS 时，给分析师主机加一条 hosts 记录 `<主机IP> copilot.corp.local`。
 
 ---
 
@@ -289,7 +297,7 @@ RST_RBAC_VIEWER_GROUPS=auditors
 | 症状 | 排查 |
 |---|---|
 | 打不开 `/v2/` | `docker compose -f docker-compose.prod.yml logs caddy gateway`;确认入站 443、`CADDY_SITE_ADDRESS` 用域名 |
-| HTTPS 握手失败 | `CADDY_SITE_ADDRESS` 是不是裸 IP?换域名 + hosts（§3） |
+| HTTPS 握手失败（裸 IP，TLS internal error） | 确认 caddy 传入了 `CADDY_DEFAULT_SNI`（多地址站点须显式设为其一）;`docker restart rst-elastic-ai-copilot-caddy` 生效（`admin off`,reload 不可用） |
 | `/readyz` es_write=denied | ES 账号缺 `.rst_copilot_*` 建/写权限（§8） |
 | 激活报“无法连接 license 服务器” | 出站到 `license.reallysec.com:443` 是否放通;气隙走离线激活（§9） |
 | 查询报错 / 空 | ES 连通?`RST_INDEX_WHITELIST` 是否漏了目标索引;LLM key/endpoint 是否正确 |
@@ -329,7 +337,8 @@ RST_GATEWAY_SHARED_SECRET=<openssl rand -hex 32>
 RST_ADMIN_TOKEN=<openssl rand -hex 32>
 
 # —— Caddy 反代（必填）——
-CADDY_SITE_ADDRESS=copilot.corp.local   # 域名,勿用裸 IP
+CADDY_SITE_ADDRESS=copilot.corp.local   # 域名或 IP 均可
+# CADDY_DEFAULT_SNI=                     # 留空回退到站点地址;站点填多个地址时设为其一(裸 IP 访问必需)
 # 登录走网关自带 /v2 表单(默认 admin / Admin@123);生产改口令用下面的
 # RST_ADMIN_PASSWORD_HASH,Caddy 不再有 Basic Auth 弹窗。
 RST_ADMIN_PASSWORD_HASH=<docker exec rst-elastic-ai-copilot-gateway python -m backend.session_auth 'PWD'>

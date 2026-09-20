@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { useThinking } from '@/components/ThinkingToggle'
 import { useNavigate } from '@tanstack/react-router'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { AlertCircleIcon, BellRingIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, Cancel01Icon, CopyIcon, Download01Icon, FileTextIcon, Loading03Icon, Share01Icon, ShieldAlertIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons'
@@ -94,6 +95,7 @@ export function InvestigationDialog({
 }: InvestigationDialogProps) {
   const t = useT(dialogsCopy)
   const c = useT(commonCopy)
+  const thinking = useThinking()
   const feishuGate = useGate('write')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -134,7 +136,7 @@ export function InvestigationDialog({
     // live checklist (keyed so active→done replaces in place); the terminal
     // `result` frame lands the full investigation.
     const ctrl = streamInvestigate(
-      { index, alert: alertDoc, window_minutes: windowMinutes },
+      { index, alert: alertDoc, window_minutes: windowMinutes, reasoning: thinking },
       {
         onStage: (e) =>
           setStages((prev) => {

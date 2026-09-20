@@ -69,3 +69,8 @@ poc/.rst_secret_key
 
 # Serena 的本地索引/记忆，跟这个仓库的内容无关
 .serena/
+
+# AI 生成的计划/提示词/交接/设计文档：只在本地保留，永不入库
+docs/PROMPT-*
+docs/HANDOFF-*
+docs/superpowers/

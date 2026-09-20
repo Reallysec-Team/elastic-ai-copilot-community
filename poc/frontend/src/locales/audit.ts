@@ -50,6 +50,8 @@ export type AuditKey =
   | 'copyJson'
   // 后端 action 名的页面说法
   | 'actGenerate'
+  | 'actLogin'
+  | 'actLogout'
   | 'actExecute'
   | 'actExplain'
   | 'actExplainLog'
@@ -129,6 +131,8 @@ export const auditCopy = {
     copyJson: '复制 JSON',
 
     actGenerate: '生成查询',
+    actLogin: '登录',
+    actLogout: '退出登录',
     actExecute: '执行查询',
     actExplain: '解读',
     actExplainLog: '日志解读',
@@ -207,6 +211,8 @@ export const auditCopy = {
     copyJson: 'Copy JSON',
 
     actGenerate: 'Generate query',
+    actLogin: 'Sign in',
+    actLogout: 'Sign out',
     actExecute: 'Run query',
     actExplain: 'Explain',
     actExplainLog: 'Explain a log',
@@ -234,6 +240,8 @@ export const auditCopy = {
 
 /** 后端 `audit.write_event(...)` 的第一个实参 → 文案键。缺的按原样显示。 */
 export const ACTION_KEY: Record<string, AuditKey> = {
+  login: 'actLogin',
+  logout: 'actLogout',
   generate: 'actGenerate',
   execute: 'actExecute',
   explain: 'actExplain',

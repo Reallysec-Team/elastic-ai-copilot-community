@@ -41,6 +41,16 @@ export const EMPTY_ES: EsSettings = {
   'es.ca_cert': '',
 }
 
+/* 证书校验的默认值必须和后端一致。后端 `_verify_certs()` 在 `RST_ES_VERIFY_CERTS`
+   未设置时返回 true（校验），而空开关如果按 false（不校验）解释，就会出现「测试连接
+   用不校验、实际查询用校验」的分裂：自签名 https 集群测通了，换页却处处连不上。
+   所以空串在这里等同后端默认 true，让测试和线上用同一套 TLS 参数。管理员显式关掉
+   （落 'false'）时才不校验。 */
+export function verifyCertsOn(raw: string): boolean {
+  const s = raw.trim().toLowerCase()
+  return s === '' ? true : s === 'true'
+}
+
 /* `idle` 不等于「连不上」——它是「这套参数还没验证过」。两者在界面上长得完全
    不同，混成一个 boolean 会让新装的机器一打开就红一片。 */
 export type EsTestState =
@@ -70,7 +80,7 @@ export function useEsProbe() {
       url: draft['es.url'],
       user: draft['es.user'],
       password: draft['es.password'],
-      verify_certs: draft['es.verify_certs'].toLowerCase() === 'true',
+      verify_certs: verifyCertsOn(draft['es.verify_certs']),
       ca_cert: draft['es.ca_cert'],
     })
   }
@@ -156,7 +166,7 @@ export function EsFields({
   loading?: boolean
 }) {
   const t = useT(settingsCopy)
-  const verify = draft['es.verify_certs'].toLowerCase() === 'true'
+  const verify = verifyCertsOn(draft['es.verify_certs'])
   const isHttps = draft['es.url'].trim().toLowerCase().startsWith('https://')
 
   return (

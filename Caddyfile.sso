@@ -11,6 +11,12 @@
 
 {
 	admin off
+
+	# 浏览器直连裸 IP 时不发 SNI（RFC 6066：SNI 只能是主机名）。没有 SNI，Caddy
+	# 匹配不到下面站点块的证书，会以 TLS alert internal error 断开握手，界面完全
+	# 打不开。default_sni 让无 SNI 的握手按此地址取证书。CADDY_SITE_ADDRESS 配多个
+	# 地址时它只能取其一，由 CADDY_DEFAULT_SNI 指定（compose 缺省回退到站点地址）。
+	default_sni {$CADDY_DEFAULT_SNI}
 }
 
 {$CADDY_SITE_ADDRESS} {

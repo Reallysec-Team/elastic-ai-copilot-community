@@ -87,6 +87,8 @@ export interface StreamGenerateRequest {
   /** 界面选的时间范围（ISO）。都不给 = 全部时间 = 后端什么都不改。 */
   since?: string
   until?: string
+  /** 用户的「深度思考」开关；不传 = 后端默认档。 */
+  reasoning?: 'on' | 'off'
 }
 
 export interface StreamCallbacks {
@@ -213,6 +215,7 @@ export interface InvestigateStreamRequest {
   index: string
   alert: Record<string, unknown>
   window_minutes?: number
+  reasoning?: 'on' | 'off'
 }
 
 export function streamInvestigate(

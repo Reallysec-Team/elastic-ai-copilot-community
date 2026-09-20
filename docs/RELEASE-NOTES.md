@@ -6,6 +6,32 @@ delivery archive is named after.
 
 ---
 
+## 1.1.26 — 2026-09-21
+
+两个连接类问题的修复：裸 IP 部署打不开界面，以及自签名 https 集群「测试连接通、页面却报没连」。
+
+### 修复
+
+- **站点地址用裸 IP 时界面能打开了。** 浏览器直连裸 IP 按 RFC 6066 不发 SNI，
+  Caddy 匹配不到证书，以 TLS `internal error` 断开握手，`https://<IP>/v2/`
+  完全打不开。Caddyfile 全局块加了 `default_sni`，无 SNI 的握手按站点地址取
+  证书。compose 缺省回退到 `CADDY_SITE_ADDRESS`；站点配多个空格分隔地址时，
+  另设 `CADDY_DEFAULT_SNI` 指定其一（`default_sni` 只接受单值）。deploy.sh
+  自动写好。
+- **自签名 https 集群不再「测试通、页面红」。** 系统设置里「校验服务端证书」
+  开关未动时按不校验发起测试连接，而网关实际查询默认校验证书，于是自签名
+  集群测试显示已连接、换页却处处报无法连接。现在开关默认与后端一致（校验），
+  测试与线上用同一套 TLS 参数。
+
+### 升级须知
+
+- 用裸 IP 部署的现场：升级后无需改配置，`CADDY_DEFAULT_SNI` 缺省即回退到站点
+  地址。站点地址是多个时才需显式设置。
+- **行为变化**：自签名 / 内部 CA 的 https 集群，「测试连接」现在会如实失败。
+  在「校验服务端证书」填入 CA 证书路径，或显式关闭该开关后再测试保存。
+
+---
+
 ## 1.1.25 — 2026-09-19
 
 Packaging fix for offline installation. No gateway behaviour changes.

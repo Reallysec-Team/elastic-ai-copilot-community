@@ -18,6 +18,8 @@ export interface UiPrefs {
   avatar?: string
   defaultIndex?: string
   pageSize?: number
+  /** 「深度思考」开关（components/ThinkingToggle.tsx）。默认 off。 */
+  thinking?: 'on' | 'off'
   /** Visible columns keyed by index name (column sets are index-specific). */
   columns?: Record<string, string[]>
   /** Last local change to a scalar field (defaultIndex/pageSize). Lets a stale

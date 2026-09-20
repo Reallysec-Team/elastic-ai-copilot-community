@@ -37,6 +37,8 @@ export interface GenerateRequest extends TimeWindowParams {
   question: string
   index: string
   conversation_id?: string | null
+  /** 用户的「深度思考」开关；不传 = 后端这一步的默认档。 */
+  reasoning?: 'on' | 'off'
 }
 
 export interface GenerateResponse {
@@ -170,6 +172,7 @@ export interface InvestigateRequest {
   index: string
   alert: Record<string, unknown>
   window_minutes?: number
+  reasoning?: 'on' | 'off'
 }
 
 export interface InvestigateResponse {
@@ -778,6 +781,7 @@ export const api = {
     index: string
     question: string
     rule_type_hint?: string
+    reasoning?: 'on' | 'off'
   }) =>
     request<{
       rule: Record<string, unknown> | null
@@ -1522,6 +1526,7 @@ export const api = {
     window_minutes?: number
     max_alerts?: number
     max_clusters_to_llm?: number
+    reasoning?: 'on' | 'off'
   }) =>
     request<{
       total_alerts: number

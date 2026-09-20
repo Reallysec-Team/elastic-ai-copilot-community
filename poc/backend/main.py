@@ -667,7 +667,7 @@ async def generate(req: GenerateRequest, request: Request, response: Response):
         try:
             dsl, explanation, confidence, confidence_reason, time_intent = await generate_dsl(
                 req.question, req.index, mapping, prior_turns=prior_turns,
-                field_samples=field_samples, examples=examples,
+                field_samples=field_samples, examples=examples, reasoning=req.reasoning,
             )
         except Exception as e:
             if is_unactivated:
@@ -838,7 +838,7 @@ async def generate_stream(req: GenerateRequest, request: Request):
         try:
             async for ev in generate_dsl_stream(
                 req.question, req.index, mapping, prior_turns=prior_turns,
-                field_samples=field_samples, examples=examples,
+                field_samples=field_samples, examples=examples, reasoning=req.reasoning,
             ):
                 if ev["type"] == "done":
                     stream_ok = True
@@ -1272,10 +1272,11 @@ async def investigate_alert_endpoint(req: InvestigateRequest, request: Request):
     try:
         if agentic:
             result = await agentic_investigate.agentic_investigate_alert(
-                req.alert, req.index, window_minutes=req.window_minutes
+                req.alert, req.index, window_minutes=req.window_minutes, reasoning=req.reasoning
             )
         else:
-            result = await investigate_alert(req.alert, req.index, window_minutes=req.window_minutes)
+            result = await investigate_alert(
+                req.alert, req.index, window_minutes=req.window_minutes, reasoning=req.reasoning)
     except Exception as e:
         raise ApiError("investigation_failed", 500, reason=e)
     _record_investigation(req, request, result, user, agentic, start)
@@ -1355,11 +1356,13 @@ async def investigate_alert_stream(req: InvestigateRequest, request: Request):
         try:
             if agentic:
                 result = await agentic_investigate.agentic_investigate_alert(
-                    req.alert, req.index, window_minutes=req.window_minutes, progress=_progress
+                    req.alert, req.index, window_minutes=req.window_minutes, progress=_progress,
+                    reasoning=req.reasoning,
                 )
             else:
                 result = await investigate_alert(
-                    req.alert, req.index, window_minutes=req.window_minutes, progress=_progress
+                    req.alert, req.index, window_minutes=req.window_minutes, progress=_progress,
+                    reasoning=req.reasoning,
                 )
         except Exception as e:  # noqa: BLE001
             await queue.put({"type": "error", "message": f"Investigation failed: {e}"})
@@ -1596,7 +1599,7 @@ async def detection_rule_generate(req: DetectionRuleRequest, request: Request):
         raise es_api_error(e)
     try:
         result = await generate_detection_rule(
-            req.question, req.index, mapping, req.rule_type_hint,
+            req.question, req.index, mapping, req.rule_type_hint, reasoning=req.reasoning,
         )
     except FeatureLocked as e:
         # SEC-CC-1: the sealed engine could not be unlocked on this host — the
@@ -1658,7 +1661,7 @@ async def triage_batch_endpoint(req: TriageBatchRequest, request: Request):
             query=req.query,
             window_minutes=req.window_minutes,
             max_alerts=req.max_alerts,
-            max_clusters_to_llm=req.max_clusters_to_llm,
+            max_clusters_to_llm=req.max_clusters_to_llm, reasoning=req.reasoning,
         )
     except (HTTPException, FeatureLocked):
         # FeatureLocked has its own app-level handler (403 + feature_sealed);
@@ -2110,9 +2113,11 @@ async def auth_login(req: LoginRequest, request: Request):
     # form sent, so the identity that reaches audit and the state buckets is one
     # value and not one per typo.
     account = user_db.get(req.username) or {}
-    session_auth.set_session_cookie(
-        resp, request, str(account.get("username") or session_auth.username())
-    )
+    username = str(account.get("username") or session_auth.username())
+    session_auth.set_session_cookie(resp, request, username)
+    # The cookie is not on this request yet, so current_user() would return
+    # None here — attribute the event to the account we just issued for.
+    audit.fire_and_forget(audit.write_event("login", user={"username": username}))
     return resp
 
 
@@ -2256,9 +2261,11 @@ async def auth_logout(request: Request):
     # Withdraw the session server-side, not just the cookie. Deleting the cookie
     # asks the browser to forget a credential that kept working for the rest of
     # its TTL — which made "sign out" untrue on any device that had copied it.
+    user = current_user(request)
     session_auth.revoke_session(request)
     resp = JSONResponse({"ok": True})
     session_auth.clear_session_cookie(resp)
+    audit.fire_and_forget(audit.write_event("logout", user=user))
     return resp
 
 

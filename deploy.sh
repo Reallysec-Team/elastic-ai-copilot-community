@@ -412,6 +412,9 @@ collect_and_write_env() {
     echo ""
     echo "# ── Caddy (HTTPS) ──"
     echo "CADDY_SITE_ADDRESS=$SITE_ADDR"
+    # Bare-IP access sends no SNI; default_sni needs a single name. Take the
+    # first token so a multi-address site address still yields a valid value.
+    echo "CADDY_DEFAULT_SNI=${SITE_ADDR%% *}"
     if [ "$AUTH_CHOICE" = '2' ]; then
       echo ""
       echo "# ── SSO (OIDC) ──"

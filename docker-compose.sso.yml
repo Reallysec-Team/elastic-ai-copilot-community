@@ -126,7 +126,7 @@ services:
 
   gateway:
     # No build: — the delivery bundle carries prebuilt images and no Dockerfile.
-    image: rst-elastic-ai-copilot-gateway:${GATEWAY_IMAGE_TAG:-1.1.25}
+    image: rst-elastic-ai-copilot-gateway:${GATEWAY_IMAGE_TAG:-1.1.26}
     container_name: rst-elastic-ai-copilot-sso-gateway
     environment:
       # ES/Kibana — form A (default) reads ES_URL / KIBANA_URL from .env;
@@ -199,6 +199,10 @@ services:
       - "443:443"
     environment:
       - CADDY_SITE_ADDRESS=${CADDY_SITE_ADDRESS:?set CADDY_SITE_ADDRESS}
+      # SNI fallback for IP-literal access (bare IP sends no SNI). Falls back to
+      # the site address; set explicitly to ONE value when CADDY_SITE_ADDRESS
+      # lists several.
+      - CADDY_DEFAULT_SNI=${CADDY_DEFAULT_SNI:-${CADDY_SITE_ADDRESS}}
       - RST_GATEWAY_SHARED_SECRET=${RST_GATEWAY_SHARED_SECRET:?set RST_GATEWAY_SHARED_SECRET}
     volumes:
       - ./Caddyfile.sso:/etc/caddy/Caddyfile:ro

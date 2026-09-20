@@ -43,16 +43,10 @@ def test_detect_family(base_url, model, kind, family):
 
 
 def test_params_ark_none_disables_thinking():
-    assert llm_reasoning.params_for("ark", "ark-code-latest", "none") == {
-        "extra_body": {"thinking": {"type": "disabled"}}
-    }
-    # 豆包只有开 / 关，low 落在关。
-    assert llm_reasoning.params_for("ark", "ark-code-latest", "low") == {
-        "extra_body": {"thinking": {"type": "disabled"}}
-    }
-    assert llm_reasoning.params_for("ark", "ark-code-latest", "high") == {
-        "extra_body": {"thinking": {"type": "enabled"}}
-    }
+    # 方舟认 reasoning_effort（2026-09-18 实测：minimal / low / high 三档都生效）。
+    assert llm_reasoning.params_for("ark", "ark-code-latest", "none") == {"reasoning_effort": "minimal"}
+    assert llm_reasoning.params_for("ark", "ark-code-latest", "low") == {"reasoning_effort": "low"}
+    assert llm_reasoning.params_for("ark", "ark-code-latest", "high") == {"reasoning_effort": "high"}
 
 
 def test_params_openai_only_for_reasoning_models():
@@ -134,14 +128,14 @@ def test_router_sends_translated_param():
     comp = _FakeCompletions()
     r = _router(_ark(), comp)
     asyncio.run(r.chat_completion(messages=[], reasoning="none"))
-    assert comp.calls[0]["extra_body"] == {"thinking": {"type": "disabled"}}
+    assert comp.calls[0]["reasoning_effort"] == "minimal"
 
 
 def test_router_provider_override_off_wins():
     comp = _FakeCompletions()
     r = _router(_ark(reasoning="off"), comp)
     asyncio.run(r.chat_completion(messages=[], reasoning="high"))
-    assert comp.calls[0]["extra_body"] == {"thinking": {"type": "disabled"}}
+    assert comp.calls[0]["reasoning_effort"] == "minimal"
 
 
 def test_router_no_hint_sends_nothing():
@@ -157,7 +151,7 @@ def test_router_retries_without_reasoning_on_400():
     resp, _ = asyncio.run(r.chat_completion(messages=[], reasoning="none"))
     assert isinstance(resp, _Resp)
     assert len(comp.calls) == 2
-    assert "extra_body" in comp.calls[0] and "extra_body" not in comp.calls[1]
+    assert "reasoning_effort" in comp.calls[0] and "reasoning_effort" not in comp.calls[1]
 
 
 def test_router_stream_retries_without_reasoning_on_400(monkeypatch):
@@ -250,3 +244,11 @@ def test_stream_timeout_not_applied_once_content_started(monkeypatch):
 
     events = _collect(monkeypatch, _R())
     assert events[-1]["type"] == "done"
+
+
+def test_reasoning_from_request_overrides_step_default():
+    # 请求级开关：on → high，off → none，不传 → 该步默认档
+    assert llm_reasoning.from_request("on", "low") == "high"
+    assert llm_reasoning.from_request("off", "high") == "none"
+    assert llm_reasoning.from_request(None, "low") == "low"
+    assert llm_reasoning.from_request("garbage", "low") == "low"

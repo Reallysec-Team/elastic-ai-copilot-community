@@ -21,7 +21,7 @@ import logging
 from typing import Any
 
 
-from . import feature_unlock
+from . import feature_unlock, llm_reasoning
 from .field_masking import mask_doc
 from .llm import parse_json, lift_contract_keys
 from .llm_router import get_router
@@ -38,6 +38,7 @@ async def generate_detection_rule(
     index: str,
     mapping: dict[str, Any],
     rule_type_hint: str | None = None,
+    reasoning: str | None = None,
 ) -> dict[str, Any]:
     # SEC-CC-1: unlock the sealed normalization engine BEFORE spending an LLM
     # call. Raises FeatureLocked when this host's license can't unwrap it — the
@@ -54,7 +55,8 @@ async def generate_detection_rule(
             {"role": "user", "content": user_prompt},
         ],
         temperature=0,
-        reasoning="high",  # 检测规则：付费引擎，要推理
+        # 规则设计：输出结构固定，low 15s 出齐；用户开关可覆盖
+        reasoning=llm_reasoning.from_request(reasoning, "low"),
     )
     # Empty `choices` would IndexError → opaque 500. Treat a missing/malformed
     # model reply as a transient failure (RuntimeError → 500 "failed, retry"),

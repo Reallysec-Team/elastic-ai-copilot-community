@@ -38,7 +38,7 @@ services:
     # Tag is installer-managed: rst-update.sh writes GATEWAY_IMAGE_TAG into .env
     # on a health-gated release install / rollback (P4). Default preserves the
     # pre-P4 behaviour when the var is unset.
-    image: rst-elastic-ai-copilot-gateway:${GATEWAY_IMAGE_TAG:-1.1.25}
+    image: rst-elastic-ai-copilot-gateway:${GATEWAY_IMAGE_TAG:-1.1.26}
     container_name: rst-elastic-ai-copilot-gateway
     restart: unless-stopped
     # Resource ceiling so one runaway request / memory leak can't starve the
@@ -140,7 +140,7 @@ services:
       # Current running version — the heartbeat sends it, and the server only
       # offers a release/content pack newer than this. Keep in lockstep with
       # GATEWAY_IMAGE_TAG (rst-update.sh bumps the tag on install).
-      - APP_VERSION=${APP_VERSION:-${GATEWAY_IMAGE_TAG:-1.1.25}}
+      - APP_VERSION=${APP_VERSION:-${GATEWAY_IMAGE_TAG:-1.1.26}}
       # Vendor content/release signing PUBLIC key — content packs + online releases
       # verify against it fail-closed. OPTIONAL: leave unset and verification falls
       # back to the built-in license public key (fine until you ship dedicated-key
@@ -284,6 +284,11 @@ services:
       - "443:443"
     environment:
       - CADDY_SITE_ADDRESS=${CADDY_SITE_ADDRESS:?set CADDY_SITE_ADDRESS to the hostname or IP analysts use}
+      # SNI fallback for IP-literal access — a browser hitting a bare IP sends no
+      # SNI, so Caddy needs a default cert to serve. Falls back to the site
+      # address; set CADDY_DEFAULT_SNI explicitly to ONE value when
+      # CADDY_SITE_ADDRESS lists several (default_sni takes a single name).
+      - CADDY_DEFAULT_SNI=${CADDY_DEFAULT_SNI:-${CADDY_SITE_ADDRESS}}
       - RST_GATEWAY_SHARED_SECRET=${RST_GATEWAY_SHARED_SECRET:?set RST_GATEWAY_SHARED_SECRET in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro

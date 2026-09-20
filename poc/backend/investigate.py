@@ -13,6 +13,7 @@ from .enrich.prompt_context import asset_context_block
 from .es_client import get_es
 from .field_masking import mask_doc
 from .llm import parse_json
+from . import llm_reasoning
 from .llm_router import get_router
 from .prompts import investigate_system_prompt, build_investigate_prompt
 from .rag import augment_prompt_meta
@@ -55,6 +56,7 @@ _SUBJECT_FIELDS = [
 async def investigate_alert(
     alert: dict[str, Any], index: str, window_minutes: int = 30,
     progress: ProgressCb = None,
+    reasoning: str | None = None,
 ) -> dict[str, Any]:
     """Investigate an alert: gather context, call LLM, normalize output.
 
@@ -106,7 +108,7 @@ async def investigate_alert(
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0,
-            reasoning="high",  # 告警调查：付费引擎
+            reasoning=llm_reasoning.from_request(reasoning, "high"),  # 告警调查：付费引擎
         )
         if not resp.choices:
             raise ValueError("model returned no choices")

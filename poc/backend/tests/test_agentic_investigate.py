@@ -398,3 +398,36 @@ def test_parse_tool_args_keeps_first_object_when_stream_repeats_a_slice():
     good = '{"index": "logs-*", "dsl": {"size": 50}}'
     raw = good + ', {"term": {"host.name": "web-prod-03"}}], "sort": [{"@timestamp": "asc"}]}}}'
     assert ag._parse_tool_args(raw) == {"index": "logs-*", "dsl": {"size": 50}}
+
+
+def test_masked_ip_in_dsl_is_resolved_from_evidence(monkeypatch):
+    """脱敏 IP 服务端反查：模型只看脱敏行，但证据里见过的 IP 可原样写进 term/terms。"""
+    monkeypatch.setattr(ag, "current_mode", lambda: "cloud")
+    unmask: dict[str, set[str]] = {}
+    ag._learn_ips(
+        [{"_source": {"source": {"ip": "172.19.170.10"},
+                      "message": "conn from 10.10.20.57 to 10.10.20.5"}}],
+        unmask,
+    )
+    assert unmask["172.19.x.x"] == {"172.19.170.10"}
+    assert unmask["10.10.x.x"] == {"10.10.20.5", "10.10.20.57"}
+
+    # unique mask → plain substitution, anywhere in the DSL
+    dsl, err = ag._resolve_masked(
+        {"query": {"term": {"source.ip": "172.19.x.x"}}, "size": 20}, unmask
+    )
+    assert err is None
+    assert dsl["query"]["term"]["source.ip"] == "172.19.170.10"
+
+    # ambiguous `{"term": {f: mask}}` → terms list of the candidates
+    dsl, err = ag._resolve_masked(
+        {"query": {"term": {"source.ip": "10.10.x.x"}}}, unmask
+    )
+    assert err is None
+    assert dsl["query"]["terms"]["source.ip"] == ["10.10.20.5", "10.10.20.57"]
+
+    # never-seen mask → refused before ES, with guidance
+    _, err = ag._resolve_masked(
+        {"query": {"term": {"source.ip": "192.168.x.x"}}}, unmask
+    )
+    assert err and "脱敏" in err

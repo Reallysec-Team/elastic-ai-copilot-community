@@ -8,6 +8,7 @@ from typing import Any
 from openai import AsyncOpenAI
 
 from .api_errors import error_payload
+from . import llm_reasoning
 from .llm_router import get_router
 from .prompts import system_prompt, build_user_prompt
 from .rag import augment_prompt_meta
@@ -93,6 +94,7 @@ async def generate_dsl(
     prior_turns: list[dict[str, Any]] | None = None,
     field_samples: dict[str, list[str]] | None = None,
     examples: list[dict[str, Any]] | None = None,
+    reasoning: str | None = None,
 ) -> tuple[dict | None, str, str, str | None, dict[str, Any] | None]:
     """Returns (dsl_or_none, explanation, confidence, confidence_reason, time_intent).
 
@@ -116,7 +118,7 @@ async def generate_dsl(
         {"role": "user", "content": user_prompt},
     ]
     resp, provider = await router.chat_completion(
-        messages=messages, temperature=0, reasoning=nl2dsl_reasoning(),
+        messages=messages, temperature=0, reasoning=llm_reasoning.from_request(reasoning, nl2dsl_reasoning()),
     )
     if not resp.choices:
         raise ValueError("模型未返回内容,请重试。")
@@ -150,6 +152,7 @@ async def generate_dsl_stream(
     prior_turns: list[dict[str, Any]] | None = None,
     field_samples: dict[str, list[str]] | None = None,
     examples: list[dict[str, Any]] | None = None,
+    reasoning: str | None = None,
 ):
     """Streaming version of generate_dsl. Yields a series of dicts:
 
@@ -183,7 +186,7 @@ async def generate_dsl_stream(
     thinking_chars = 0
 
     agen = router.chat_completion_stream(
-        messages=messages, temperature=0, reasoning=nl2dsl_reasoning(),
+        messages=messages, temperature=0, reasoning=llm_reasoning.from_request(reasoning, nl2dsl_reasoning()),
     )
     limit = first_token_timeout_s()
     deadline = asyncio.get_running_loop().time() + limit if limit else None
@@ -381,6 +384,17 @@ def parse_json(text: str) -> dict:
             return json.loads(repaired)
         except json.JSONDecodeError as e:
             last = e
+
+    # 5) a Python dict repr ({'k': 'v', 'flag': False}) — ark-code-latest did
+    #    this on a long investigation verdict (2026-09-19). Literals only, so
+    #    literal_eval is safe; anything that isn't a dict is still an error.
+    try:
+        import ast
+        obj = ast.literal_eval(candidate)
+        if isinstance(obj, dict):
+            return obj
+    except (ValueError, SyntaxError, MemoryError, RecursionError):
+        pass
     raise ValueError(
         f"Cannot parse LLM output as JSON ({last}). "
         f"Raw output (first 1500 chars):\n{raw[:1500]}"

@@ -19,7 +19,8 @@ providers:
     base_url: https://ark.cn-beijing.volces.com/api/v3
     api_key_env: ARK_API_KEY                 # set ARK_API_KEY=... in .env
     model: ep-xxxxxxxxxxxxxx-xxxxx           # your Ark inference endpoint id
-    timeout_s: 30
+    timeout_s: 180                           # 普通调用；reasoning=high 另有 RST_LLM_THINKING_TIMEOUT_S 下限
+    # reasoning: auto                        # auto | off | low | high — 覆盖所有任务的推理档
     tags: [primary, cloud]
 
   # Failover: OpenAI (or compat — Azure OpenAI, OpenRouter, etc.).

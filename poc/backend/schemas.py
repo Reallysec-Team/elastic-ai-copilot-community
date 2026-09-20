@@ -8,7 +8,13 @@ safe, low-risk choice. They carry no license-enforcement logic, so there is
 nothing here worth obfuscating.
 """
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+# 用户级「深度思考」开关：on → 让模型充分推理（等 1–2 分钟），off → 不推理，
+# 不传 → 各步自己的默认档。provider 上的 reasoning 覆盖仍优先（llm_reasoning.resolve）。
+Reasoning = Literal["on", "off"] | None
 
 # Shared, realistic bounds so out-of-range input is rejected at the API edge
 # (HTTP 422) instead of leaking into ES queries / loops as a 500 or a cost blow-up.
@@ -34,6 +40,7 @@ class GenerateRequest(TimeWindowMixin):
     # 先回答「哪个索引」——那是这个产品声称要替他省掉的那个问题。
     index: str = Field(default="", max_length=_MAX_INDEX_LEN)
     conversation_id: str | None = Field(default=None, max_length=_MAX_ID_LEN)
+    reasoning: Reasoning = None
 
 
 class IndexRouting(BaseModel):
@@ -133,6 +140,7 @@ class InvestigateRequest(BaseModel):
     index: str = Field(..., max_length=_MAX_INDEX_LEN)
     alert: dict
     window_minutes: int = Field(default=30, ge=1, le=_MAX_WINDOW_MINUTES)
+    reasoning: Reasoning = None
 
 
 class FieldDictRequest(BaseModel):
@@ -158,6 +166,7 @@ class DetectionRuleRequest(BaseModel):
     index: str = Field(..., max_length=_MAX_INDEX_LEN)
     question: str = Field(..., max_length=_MAX_QUESTION_LEN)
     rule_type_hint: str | None = Field(default=None, max_length=_MAX_ID_LEN)
+    reasoning: Reasoning = None
 
 
 class TriageBatchRequest(BaseModel):
@@ -169,6 +178,7 @@ class TriageBatchRequest(BaseModel):
     window_minutes: int = Field(default=60, ge=1, le=_MAX_WINDOW_MINUTES)
     max_alerts: int = Field(default=100, ge=1, le=1000)
     max_clusters_to_llm: int = Field(default=30, ge=1, le=100)
+    reasoning: Reasoning = None
 
 
 class IncidentReportRequest(BaseModel):

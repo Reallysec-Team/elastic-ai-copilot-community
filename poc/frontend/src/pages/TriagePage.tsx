@@ -3,6 +3,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { AlertCircleIcon, Cancel01Icon, Download01Icon, HistoryIcon, LightbulbIcon, SaveIcon, ShieldAlertIcon, SparklesIcon, TriangleAlertIcon } from '@hugeicons/core-free-icons'
 import { api, type ApiError } from '@/lib/api'
 import { toast } from 'sonner'
+import { ThinkingToggle, useThinking } from '@/components/ThinkingToggle'
 import { Alert, AlertDescription } from '@/components/reui/alert'
 import { Frame, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame'
 import { MixDonut, type DonutSlice } from '@/components/blocks/chart-13/components/mix-donut'
@@ -101,6 +102,7 @@ export function TriagePage() {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [result, setResult] = useState<TriageResult | null>(null)
+  const thinking = useThinking()
   const [handoffNote, setHandoffNote] = useState<string | null>(null)
   // Notice when a pasted batch is auto-truncated to the cap (Wave fix #3).
   const [truncateNote, setTruncateNote] = useState<string | null>(null)
@@ -257,7 +259,7 @@ export function TriagePage() {
     }
     setLoading(true)
     try {
-      const r = await api.triageBatch(payload)
+      const r = await api.triageBatch({ ...payload, reasoning: thinking })
       setResult(r)
     } catch (e) {
       setErrorMsg((e as ApiError).message || t('errRequest'))
@@ -432,6 +434,7 @@ export function TriagePage() {
               <HugeiconsIcon icon={SparklesIcon} strokeWidth={2} className="size-3.5" />
               {loading ? t('running') : t('start')}
             </Button>
+            <ThinkingToggle />
           </div>
         </FramePanel>
       </Frame>
