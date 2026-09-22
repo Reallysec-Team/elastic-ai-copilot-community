@@ -25,21 +25,26 @@ One Docker gateway inside the customer network. It does not ship Elasticsearch: 
 
 ## Capabilities
 
-| | Community (Apache-2.0) | Standard / Enterprise |
-|---|:---:|:---:|
-| Smart query: NL → Elasticsearch DSL, read-only validation, dry run, aggregation and hit tables, multi-turn | ✅ | ✅ |
-| Empty-result diagnosis: wrong time window, blocking clause, wrong index, unmatched source | ✅ | ✅ |
-| Live alerts: `.alerts-security` polling or Kibana webhook, per-alert summary, grouping, dispositions | ✅ | ✅ |
-| Posture, operations reports (daily / weekly / monthly), audit trail with syslog / webhook forwarding | ✅ | ✅ |
-| Field dictionary, runbook knowledge base (RAG), asset & identity ledger, CIS / MLPS 2.0 baseline over osquery | ✅ | ✅ |
-| Field masking (cloud / private / air-gapped), multi-provider LLM failover, per-task reasoning levels | ✅ | ✅ |
-| Users and roles (admin / analyst / read-only), OIDC SSO, notifications (Feishu, DingTalk, WeCom, Teams, Slack, mail) | ✅ | ✅ |
-| **Alert batch triage**: cluster by intent and subject, model-scored severity and false-positive verdicts | — | ✅ |
-| **Alert investigation**: agentic evidence gathering, timeline, MITRE ATT&CK, affected assets, actions | — | ✅ |
-| **Detection-rule copilot**: KQL / EQL / threshold rules with ATT&CK mapping, `.ndjson` export | — | ✅ |
-| **Platform-ops copilot**: AI read of the Elastic cluster check-up | — | ✅ |
+| | Community | Standard | Enterprise |
+|---|:---:|:---:|:---:|
+| Smart query: NL → Elasticsearch DSL, read-only validation, dry run, aggregation and hit tables, multi-turn | ✅ | ✅ | ✅ |
+| Empty-result diagnosis: wrong time window, blocking clause, wrong index, unmatched source | ✅ | ✅ | ✅ |
+| Live alerts: `.alerts-security` polling or Kibana webhook, per-alert summary, grouping, dispositions | ✅ | ✅ | ✅ |
+| Posture, operations reports (daily / weekly / monthly), local audit trail | ✅ | ✅ | ✅ |
+| Field dictionary, runbook knowledge base (RAG), asset & identity ledger, CIS / MLPS 2.0 baseline over osquery | ✅ | ✅ | ✅ |
+| Field masking (cloud / private / air-gapped), per-task reasoning levels | ✅ | ✅ | ✅ |
+| Users and roles (admin / analyst / read-only), notifications (Feishu, DingTalk, WeCom, Teams, Slack, mail) | ✅ | ✅ | ✅ |
+| **Alert batch triage**: cluster by intent and subject, model-scored severity and false-positive verdicts | — | ✅ | ✅ |
+| **Alert investigation**: agentic evidence gathering, timeline, MITRE ATT&CK, affected assets, actions | — | ✅ | ✅ |
+| **Detection-rule copilot**: KQL / EQL / threshold rules with ATT&CK mapping, `.ndjson` export | — | ✅ | ✅ |
+| **Platform-ops copilot**: AI read of the Elastic cluster check-up | — | ✅ | ✅ |
+| Audit forwarding to an external SIEM (syslog / webhook) | — | — | ✅ |
+| Multi-provider LLM failover / high availability | — | — | ✅ |
+| OIDC single sign-on / enterprise identity | — | — | ✅ |
+| Offline / air-gapped licence issuance | — | — | ✅ |
+| Deployment scale | single host | 1 node | multi-node / multi-cluster |
 
-The four paid engines ship as encrypted blobs; the decryption keys are issued per host by the licence server. A Community install activates a commercial licence in place, no reinstall. Trial = Standard for 14 days, one host.
+The four AI engines (triage, investigation, detection rules, platform-ops) ship as encrypted blobs unlocked by Standard; Enterprise adds organisation-scale integration (external SIEM, SSO, LLM HA, multi-cluster). Decryption keys are issued per host by the licence server. A Community install activates a commercial licence in place, no reinstall. Trial = Standard for 14 days, one host.
 
 <table>
   <tr>
